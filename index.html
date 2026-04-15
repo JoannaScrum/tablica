@@ -5,18 +5,68 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JoannaScrum – Tablica</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
-    body { background: #1a1a2e; }
-    iframe {
-      display: block;
-      width: 100%;
-      height: 100vh;
-      border: none;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #1a1a2e; display: flex; flex-direction: column; }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: #12122a;
+      padding: 10px 16px 0;
+      border-bottom: 2px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
     }
+    .tab-btn {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      background: rgba(255,255,255,0.06);
+      color: #90a0b7;
+      font-size: 0.88em;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .tab-btn:hover { background: rgba(255,255,255,0.12); color: #e8ecf5; }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #4fc3f7, #0077b6);
+      color: #fff;
+    }
+
+    /* ── iframes ── */
+    .frame-wrap { flex: 1; position: relative; }
+    iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+    iframe.visible { display: block; }
   </style>
 </head>
 <body>
-  <iframe src="histogram.html" title="Histogram Czasów Realizacji"></iframe>
+  <nav class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('histogram', event)">📊 Histogram</button>
+    <button class="tab-btn" onclick="showTab('scatterplot', event)">🔵 Scatterplot</button>
+  </nav>
+
+  <div class="frame-wrap">
+    <iframe id="tab-histogram" class="visible" src="histogram.html" title="Histogram Czasów Realizacji"></iframe>
+    <iframe id="tab-scatterplot" src="sc.html" title="Scatterplot Czasów Realizacji"></iframe>
+  </div>
+
+  <script>
+    function showTab(name, event) {
+      document.querySelectorAll('iframe').forEach(f => f.classList.remove('visible'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('visible');
+      event.currentTarget.classList.add('active');
+    }
+  </script>
 </body>
 </html>

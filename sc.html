@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scatterplot Czasów Realizacji</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+      color: #e8ecf5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    /* ---- stat cards ---- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 12px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-value { font-size: 2em; font-weight: 700; color: #4fc3f7; line-height: 1.1; }
+    .stat-label { font-size: 0.76em; color: #90a0b7; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+    /* ---- main layout ---- */
+    .main-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .chart-card {
+      flex: 1 1 0;
+      min-width: 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ---- sidebar ---- */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h3 {
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #90a0b7;
+      margin-bottom: 14px;
+    }
+
+    /* legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.92em;
+    }
+    .legend-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .legend-line {
+      width: 24px; height: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+
+    /* controls */
+    .control-group { margin-bottom: 14px; }
+    .control-group label {
+      display: block;
+      font-size: 0.78em;
+      color: #90a0b7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .checkbox-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88em;
+      color: #e8ecf5;
+      text-transform: none;
+      letter-spacing: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: #4fc3f7;
+      cursor: pointer;
+    }
+
+    .date-inputs { display: flex; flex-direction: column; gap: 8px; }
+    .date-inputs input[type="date"],
+    .range-inputs input[type="number"] {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #e8ecf5;
+      padding: 7px 10px;
+      font-size: 0.85em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .date-inputs input[type="date"]:focus,
+    .range-inputs input[type="number"]:focus {
+      border-color: #4fc3f7;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) opacity(0.6);
+    }
+
+    .range-inputs { display: flex; gap: 8px; }
+    .range-inputs input[type="number"] { width: 50%; }
+
+    .btn-filter {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #4fc3f7, #0077b6);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.92em;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: 4px;
+    }
+    .btn-filter:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-filter:active { transform: translateY(0); }
+
+    .btn-reset {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      color: #90a0b7;
+      font-size: 0.84em;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 6px;
+    }
+    .btn-reset:hover { background: rgba(255,255,255,0.13); }
+
+    .filter-info {
+      text-align: center;
+      font-size: 0.8em;
+      color: #4fc3f7;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    /* responsive */
+    @media (max-width: 900px) {
+      .main-row { flex-direction: column; }
+      .sidebar { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📊 Scatterplot Czasów Realizacji</h1>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statCount">–</div>
+      <div class="stat-label">Liczba zadań</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statMedian">–</div>
+      <div class="stat-label">Mediana (50p) dni</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat85">–</div>
+      <div class="stat-label">85 percentyl dni</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat95">–</div>
+      <div class="stat-label">95 percentyl dni</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statMin">–</div>
+      <div class="stat-label">Min dni</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statMax">–</div>
+      <div class="stat-label">Max dni</div>
+    </div>
+  </div>
+
+  <!-- Main row: chart + sidebar -->
+  <div class="main-row">
+    <div class="chart-card">
+      <canvas id="scatterChart"></canvas>
+    </div>
+
+    <div class="sidebar">
+      <!-- Legend panel -->
+      <div class="panel">
+        <h3>Legenda</h3>
+        <div class="legend-item"><div class="legend-dot" style="background:#FFD700"></div><span>S – Small</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7"></div><span>M – Medium</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div><span>L – Large</span></div>
+        <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+          <div class="legend-item"><div class="legend-line" style="background:#a8e063"></div><span>50 percentyl</span></div>
+          <div class="legend-item"><div class="legend-line" style="background:#ffa726"></div><span>85 percentyl</span></div>
+          <div class="legend-item"><div class="legend-line" style="background:#ef5350"></div><span>95 percentyl</span></div>
+        </div>
+      </div>
+
+      <!-- Filters panel -->
+      <div class="panel">
+        <h3>🎛 Filtry</h3>
+
+        <!-- Docelowy zakres (rozmiar) -->
+        <div class="control-group">
+          <label>Docelowy zakres</label>
+          <div class="checkbox-row">
+            <label><input type="checkbox" id="chkS" checked> <span style="color:#FFD700">S</span></label>
+            <label><input type="checkbox" id="chkM" checked> <span style="color:#4fc3f7">M</span></label>
+            <label><input type="checkbox" id="chkL" checked> <span style="color:#ef5350">L</span></label>
+          </div>
+        </div>
+
+        <!-- Data ukończenia -->
+        <div class="control-group">
+          <label>Data ukończenia</label>
+          <div class="date-inputs">
+            <input type="date" id="dateFrom" placeholder="Od">
+            <input type="date" id="dateTo" placeholder="Do">
+          </div>
+        </div>
+
+        <!-- Czas realizacji -->
+        <div class="control-group">
+          <label>Czas realizacji (dni)</label>
+          <div class="range-inputs">
+            <input type="number" id="timeMin" placeholder="Min" min="0">
+            <input type="number" id="timeMax" placeholder="Max" min="0">
+          </div>
+        </div>
+
+        <button class="btn-filter" onclick="applyFilters()">🔍 Filtruj</button>
+        <button class="btn-reset" onclick="resetFilters()">↺ Resetuj filtry</button>
+        <div class="filter-info" id="filterInfo"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Raw data ── */
+  const RAW_DATA = [
+    { date: '2024-07-15', size: 'S', days: 49 },
+    { date: '2024-08-22', size: 'S', days: 48 },
+    { date: '2024-09-10', size: 'S', days: 87 },
+    { date: '2024-09-25', size: 'M', days: 57 },
+    { date: '2024-10-05', size: 'M', days: 148 },
+    { date: '2024-10-14', size: 'S', days: 53 },
+    { date: '2024-10-28', size: 'S', days: 45 },
+    { date: '2024-11-18', size: 'M', days: 145 },
+    { date: '2024-12-04', size: 'L', days: 105 },
+    { date: '2025-01-08', size: 'S', days: 5 },
+    { date: '2025-01-20', size: 'L', days: 163 },
+    { date: '2025-02-14', size: 'S', days: 43 },
+    { date: '2025-02-26', size: 'M', days: 415 },
+    { date: '2025-03-15', size: 'L', days: 123 },
+    { date: '2025-04-10', size: 'M', days: 103 },
+    { date: '2025-05-05', size: 'L', days: 104 },
+    { date: '2025-06-12', size: 'L', days: 302 },
+    { date: '2025-06-25', size: 'L', days: 158 },
+    { date: '2025-07-02', size: 'L', days: 98 },
+    { date: '2025-07-11', size: 'S', days: 52 },
+    { date: '2025-07-18', size: 'M', days: 95 },
+    { date: '2025-07-29', size: 'S', days: 70 },
+    { date: '2025-08-03', size: 'M', days: 95 },
+    { date: '2025-08-14', size: 'M', days: 101 },
+    { date: '2025-08-21', size: 'M', days: 57 },
+    { date: '2025-08-29', size: 'M', days: 57 },
+    { date: '2025-09-08', size: 'S', days: 53 },
+    { date: '2025-09-22', size: 'L', days: 137 },
+    { date: '2025-10-04', size: 'S', days: 73 },
+    { date: '2025-10-12', size: 'M', days: 60 },
+    { date: '2025-10-19', size: 'S', days: 126 },
+    { date: '2025-10-27', size: 'M', days: 57 },
+    { date: '2025-11-05', size: 'L', days: 124 },
+    { date: '2025-11-15', size: 'M', days: 75 },
+    { date: '2025-11-25', size: 'M', days: 89 },
+    { date: '2025-12-10', size: 'S', days: 44 },
+  ];
+
+  /* ── Colour map ── */
+  const COLOR = {
+    S: { bg: 'rgba(255,215,0,0.85)',   border: '#FFD700' },
+    M: { bg: 'rgba(79,195,247,0.85)',  border: '#4fc3f7' },
+    L: { bg: 'rgba(239,83,80,0.85)',   border: '#ef5350' },
+  };
+
+  /* ── Percentile helper ── */
+  function percentile(arr, p) {
+    if (!arr.length) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx = (p / 100) * (sorted.length - 1);
+    const lo = Math.floor(idx), hi = Math.ceil(idx);
+    return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+
+  /* ── Build chart datasets from filtered data ── */
+  function buildDatasets(data) {
+    const bySize = { S: [], M: [], L: [] };
+    data.forEach(d => {
+      if (bySize[d.size]) {
+        bySize[d.size].push({ x: d.date, y: d.days, raw: d });
+      }
+    });
+    return ['S', 'M', 'L'].map(s => ({
+      label: s === 'S' ? 'S – Small' : s === 'M' ? 'M – Medium' : 'L – Large',
+      data: bySize[s],
+      backgroundColor: COLOR[s].bg,
+      borderColor: COLOR[s].border,
+      borderWidth: 1.5,
+      pointRadius: 7,
+      pointHoverRadius: 10,
+    }));
+  }
+
+  /* ── Compute percentile annotation lines ── */
+  function buildAnnotations(data) {
+    const days = data.map(d => d.days);
+    const p50 = Math.round(percentile(days, 50));
+    const p85 = Math.round(percentile(days, 85));
+    const p95 = Math.round(percentile(days, 95));
+    return {
+      p50: p50, p85: p85, p95: p95,
+      annotations: {
+        line50: {
+          type: 'line', yMin: p50, yMax: p50,
+          borderColor: '#a8e063', borderWidth: 2,
+          borderDash: [6, 4],
+          label: { display: true, content: `50p: ${p50} dni`, position: 'start', backgroundColor: 'rgba(168,224,99,0.15)', color: '#a8e063', font: { size: 11 } }
+        },
+        line85: {
+          type: 'line', yMin: p85, yMax: p85,
+          borderColor: '#ffa726', borderWidth: 2,
+          borderDash: [6, 4],
+          label: { display: true, content: `85p: ${p85} dni`, position: 'start', backgroundColor: 'rgba(255,167,38,0.15)', color: '#ffa726', font: { size: 11 } }
+        },
+        line95: {
+          type: 'line', yMin: p95, yMax: p95,
+          borderColor: '#ef5350', borderWidth: 2,
+          borderDash: [6, 4],
+          label: { display: true, content: `95p: ${p95} dni`, position: 'start', backgroundColor: 'rgba(239,83,80,0.15)', color: '#ef5350', font: { size: 11 } }
+        },
+      }
+    };
+  }
+
+  /* ── Update stat cards ── */
+  function updateStats(data, p50, p85, p95) {
+    const days = data.map(d => d.days);
+    document.getElementById('statCount').textContent = data.length;
+    document.getElementById('statMedian').textContent = p50;
+    document.getElementById('stat85').textContent = p85;
+    document.getElementById('stat95').textContent = p95;
+    document.getElementById('statMin').textContent = days.length ? Math.min(...days) : '–';
+    document.getElementById('statMax').textContent = days.length ? Math.max(...days) : '–';
+  }
+
+  /* ── Chart init ── */
+  let chart;
+  function initChart(data) {
+    const datasets = buildDatasets(data);
+    const { p50, p85, p95, annotations } = buildAnnotations(data);
+    updateStats(data, p50, p85, p95);
+
+    const ctx = document.getElementById('scatterChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: 'point' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                const r = ctx.raw.raw;
+                return ` ${r.size} | ${r.date} | ${r.days} dni`;
+              }
+            },
+            backgroundColor: 'rgba(15,20,50,0.9)',
+            titleColor: '#4fc3f7',
+            bodyColor: '#e8ecf5',
+            borderColor: 'rgba(255,255,255,0.15)',
+            borderWidth: 1,
+            padding: 10,
+          },
+          annotation: { annotations },
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'month', tooltipFormat: 'dd.MM.yyyy', displayFormats: { month: 'MMM yy' } },
+            title: { display: true, text: 'Data ukończenia', color: '#90a0b7', font: { size: 13 } },
+            grid: { color: 'rgba(255,255,255,0.07)' },
+            ticks: { color: '#90a0b7' },
+          },
+          y: {
+            title: { display: true, text: 'Czas realizacji (dni)', color: '#90a0b7', font: { size: 13 } },
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.07)' },
+            ticks: { color: '#90a0b7' },
+          },
+        },
+      },
+    });
+  }
+
+  /* ── Update chart with new data ── */
+  function updateChart(data) {
+    const datasets = buildDatasets(data);
+    const { p50, p85, p95, annotations } = buildAnnotations(data);
+    updateStats(data, p50, p85, p95);
+
+    chart.data.datasets = datasets;
+    chart.options.plugins.annotation.annotations = annotations;
+    chart.update();
+  }
+
+  /* ── Set initial filter bounds ── */
+  function initFilterBounds() {
+    const dates = RAW_DATA.map(d => d.date);
+    document.getElementById('dateFrom').value = dates.reduce((a, b) => a < b ? a : b);
+    document.getElementById('dateTo').value = dates.reduce((a, b) => a > b ? a : b);
+    const allDays = RAW_DATA.map(d => d.days);
+    document.getElementById('timeMin').value = Math.min(...allDays);
+    document.getElementById('timeMax').value = Math.max(...allDays);
+  }
+
+  /* ── Apply filters ── */
+  function applyFilters() {
+    const chkS = document.getElementById('chkS').checked;
+    const chkM = document.getElementById('chkM').checked;
+    const chkL = document.getElementById('chkL').checked;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const timeMin = parseFloat(document.getElementById('timeMin').value);
+    const timeMax = parseFloat(document.getElementById('timeMax').value);
+
+    const selectedSizes = [];
+    if (chkS) selectedSizes.push('S');
+    if (chkM) selectedSizes.push('M');
+    if (chkL) selectedSizes.push('L');
+
+    const filtered = RAW_DATA.filter(d => {
+      if (!selectedSizes.includes(d.size)) return false;
+      if (dateFrom && d.date < dateFrom) return false;
+      if (dateTo && d.date > dateTo) return false;
+      if (!isNaN(timeMin) && d.days < timeMin) return false;
+      if (!isNaN(timeMax) && d.days > timeMax) return false;
+      return true;
+    });
+
+    updateChart(filtered);
+
+    const info = document.getElementById('filterInfo');
+    info.textContent = `Wyświetlono ${filtered.length} z ${RAW_DATA.length} zadań`;
+
+    if (filtered.length > 0) {
+      launchConfetti();
+    }
+  }
+
+  /* ── Reset filters ── */
+  function resetFilters() {
+    document.getElementById('chkS').checked = true;
+    document.getElementById('chkM').checked = true;
+    document.getElementById('chkL').checked = true;
+    initFilterBounds();
+    updateChart(RAW_DATA);
+    document.getElementById('filterInfo').textContent = '';
+  }
+
+  /* ── Confetti 🎉 ── */
+  function launchConfetti() {
+    const duration = 2200;
+    const end = Date.now() + duration;
+    const colors = ['#FFD700', '#4fc3f7', '#ef5350', '#a8e063', '#ffa726'];
+    (function frame() {
+      confetti({ particleCount: 6, angle: 60, spread: 55, origin: { x: 0 }, colors });
+      confetti({ particleCount: 6, angle: 120, spread: 55, origin: { x: 1 }, colors });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+  }
+
+  /* ── Bootstrap ── */
+  initFilterBounds();
+  initChart(RAW_DATA);
+</script>
+</body>
+</html>
