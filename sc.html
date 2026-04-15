@@ -295,6 +295,11 @@
           <div class="legend-item"><div class="legend-line" style="background:#ffa726"></div><span>85 percentyl</span></div>
           <div class="legend-item"><div class="legend-line" style="background:#ef5350"></div><span>95 percentyl</span></div>
         </div>
+        <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+          <div class="legend-item"><div style="width:24px;height:0;border-top:2px dashed #FFD700;margin-top:1px;flex-shrink:0"></div><span>Trend S</span></div>
+          <div class="legend-item"><div style="width:24px;height:0;border-top:2px dashed #4fc3f7;margin-top:1px;flex-shrink:0"></div><span>Trend M</span></div>
+          <div class="legend-item"><div style="width:24px;height:0;border-top:2px dashed #ef5350;margin-top:1px;flex-shrink:0"></div><span>Trend L</span></div>
+        </div>
       </div>
 
       <!-- Filters panel -->
@@ -357,6 +362,14 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Trend lines toggle -->
+        <div class="control-group">
+          <label>Linie trendu</label>
+          <div class="checkbox-row">
+            <label><input type="checkbox" id="chkTrend" checked onchange="applyFilters()"> Pokaż</label>
+          </div>
         </div>
 
         <button class="btn-filter" onclick="applyFilters()">🔍 Filtruj</button>
@@ -422,6 +435,60 @@
     const idx = (p / 100) * (sorted.length - 1);
     const lo = Math.floor(idx), hi = Math.ceil(idx);
     return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+
+  /* ── Linear regression for trend lines ── */
+  function linearRegression(points) {
+    const n = points.length;
+    if (n < 2) return null;
+    const xs = points.map(p => new Date(p.x).getTime());
+    const ys = points.map(p => p.y);
+    const meanX = xs.reduce((a, b) => a + b, 0) / n;
+    const meanY = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = xs[i] - meanX;
+      num += dx * (ys[i] - meanY);
+      den += dx * dx;
+    }
+    if (den === 0) return null;
+    const slope = num / den;
+    const intercept = meanY - slope * meanX;
+    return { predict: ts => slope * ts + intercept, xs };
+  }
+
+  /* ── Build trend line datasets per size ── */
+  function buildTrendDatasets(data) {
+    const chkTrend = document.getElementById('chkTrend');
+    if (!chkTrend || !chkTrend.checked) return [];
+    const bySize = { S: [], M: [], L: [] };
+    data.forEach(d => { if (bySize[d.size]) bySize[d.size].push({ x: d.date, y: d.days }); });
+    const result = [];
+    ['S', 'M', 'L'].forEach(s => {
+      const pts = bySize[s];
+      if (pts.length < 2) return;
+      const reg = linearRegression(pts);
+      if (!reg) return;
+      const { predict, xs } = reg;
+      const minTs = Math.min(...xs);
+      const maxTs = Math.max(...xs);
+      result.push({
+        type: 'line',
+        label: `Trend ${s}`,
+        data: [
+          { x: new Date(minTs).toISOString().split('T')[0], y: predict(minTs) },
+          { x: new Date(maxTs).toISOString().split('T')[0], y: predict(maxTs) },
+        ],
+        borderColor: COLOR[s].border,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+      });
+    });
+    return result;
   }
 
   /* ── Build chart datasets from filtered data ── */
@@ -517,7 +584,7 @@
   /* ── Chart init ── */
   let chart;
   function initChart(data) {
-    const datasets = buildDatasets(data);
+    const datasets = [...buildDatasets(data), ...buildTrendDatasets(data)];
     const { p50, p85, p95, annotations } = buildAnnotations(data);
     updateStats(data, p50, p85, p95);
 
@@ -567,7 +634,7 @@
 
   /* ── Update chart with new data ── */
   function updateChart(data) {
-    const datasets = buildDatasets(data);
+    const datasets = [...buildDatasets(data), ...buildTrendDatasets(data)];
     const { p50, p85, p95, annotations } = buildAnnotations(data);
     updateStats(data, p50, p85, p95);
 
