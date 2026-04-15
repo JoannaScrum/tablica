@@ -51,8 +51,8 @@
 </head>
 <body>
   <nav class="tab-bar">
-    <button class="tab-btn active" onclick="showTab('histogram')">📊 Histogram</button>
-    <button class="tab-btn" onclick="showTab('scatterplot')">🔵 Scatterplot</button>
+    <button class="tab-btn active" onclick="showTab('histogram', event)">📊 Histogram</button>
+    <button class="tab-btn" onclick="showTab('scatterplot', event)">🔵 Scatterplot</button>
   </nav>
 
   <div class="frame-wrap">
@@ -61,7 +61,7 @@
   </div>
 
   <script>
-    function showTab(name) {
+    function showTab(name, event) {
       document.querySelectorAll('iframe').forEach(f => f.classList.remove('visible'));
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + name).classList.add('visible');
