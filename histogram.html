@@ -26,7 +26,7 @@
       text-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
 
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1200px; margin: 0 auto; }
 
     /* ---------- stat cards ---------- */
     .stats-grid {
@@ -61,25 +61,203 @@
       letter-spacing: 0.6px;
     }
 
-    /* ---------- chart card ---------- */
+    /* ---------- chart + side legend layout ---------- */
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+
     .chart-card {
+      flex: 1 1 0;
+      min-width: 0;
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 16px;
       padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ---------- side stats legend ---------- */
+    .side-legend {
+      flex: 0 0 220px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 20px 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .side-legend h2 {
+      font-size: 0.82em;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #90a0b7;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .size-block {
+      margin-bottom: 18px;
+    }
+    .size-block:last-child { margin-bottom: 0; }
+
+    .size-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .size-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .size-name {
+      font-size: 0.95em;
+      font-weight: 700;
+      color: #e8ecf5;
+    }
+    .size-count {
+      font-size: 0.78em;
+      color: #90a0b7;
+      margin-left: auto;
+    }
+
+    .size-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 10px;
+    }
+    .size-stat-item {
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      padding: 5px 8px;
+    }
+    .size-stat-val {
+      font-size: 1em;
+      font-weight: 700;
+      color: #4fc3f7;
+    }
+    .size-stat-lbl {
+      font-size: 0.65em;
+      color: #6a7f9a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .side-legend-divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 14px 0;
+    }
+
+    .legend-lines {
+      margin-top: 14px;
+    }
+    .legend-line-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8em;
+      color: #90a0b7;
+      margin-bottom: 6px;
+    }
+    .legend-line-swatch {
+      width: 22px;
+      height: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ---------- add data form ---------- */
+    .add-form-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 20px 24px;
       margin-bottom: 28px;
       backdrop-filter: blur(8px);
     }
 
-    .legend {
+    .add-form-card h2 {
+      font-size: 1em;
+      font-weight: 600;
+      color: #e8ecf5;
+      margin-bottom: 16px;
+    }
+
+    .add-form-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-      margin-bottom: 18px;
+      gap: 12px;
+      align-items: flex-end;
     }
-    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.92em; }
-    .legend-dot { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-size: 0.75em;
+      color: #90a0b7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input,
+    .form-group select {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 9px 13px;
+      color: #e8ecf5;
+      font-size: 0.95em;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      min-width: 120px;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #4fc3f7;
+    }
+    .form-group select option {
+      background: #1a1a2e;
+    }
+
+    .add-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #0d7ec9, #1E90FF);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.95em;
+      font-weight: 600;
+      font-family: inherit;
+      box-shadow: 0 3px 12px rgba(30,144,255,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .add-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 18px rgba(30,144,255,0.6);
+    }
+    .add-btn:active { transform: translateY(0); }
+
+    .add-feedback {
+      font-size: 0.8em;
+      color: #4fc3f7;
+      margin-top: 8px;
+      min-height: 1.2em;
+      transition: opacity 0.3s;
+    }
 
     /* ---------- anthem button ---------- */
     .anthem-wrap { text-align: center; }
@@ -111,6 +289,11 @@
       font-size: 0.78em;
       color: #6a7f9a;
     }
+
+    @media (max-width: 768px) {
+      .chart-row { flex-direction: column; }
+      .side-legend { flex: none; width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -118,7 +301,7 @@
 
   <h1>🎯 Histogram Czasów Realizacji</h1>
 
-  <!-- Statistics -->
+  <!-- Overall Statistics -->
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-value" id="stat-mean">—</div>
@@ -142,27 +325,145 @@
     </div>
   </div>
 
-  <!-- Chart -->
-  <div class="chart-card">
-    <div class="legend">
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#FFD700;"></div>
-        <span>S – Small</span>
+  <!-- Chart + Side Legend -->
+  <div class="chart-row">
+    <div class="chart-card">
+      <canvas id="histogramChart"></canvas>
+    </div>
+
+    <div class="side-legend">
+      <h2>Statystyki wg rozmiaru</h2>
+
+      <!-- S -->
+      <div class="size-block">
+        <div class="size-header">
+          <div class="size-dot" style="background:#FFD700;"></div>
+          <span class="size-name">S – Small</span>
+          <span class="size-count" id="sl-s-count"></span>
+        </div>
+        <div class="size-stats">
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-s-mean">—</div>
+            <div class="size-stat-lbl">Średnia</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-s-p50">—</div>
+            <div class="size-stat-lbl">P50</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-s-p85">—</div>
+            <div class="size-stat-lbl">P85</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-s-p95">—</div>
+            <div class="size-stat-lbl">P95</div>
+          </div>
+        </div>
       </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#1E90FF;"></div>
-        <span>M – Medium</span>
+
+      <hr class="side-legend-divider">
+
+      <!-- M -->
+      <div class="size-block">
+        <div class="size-header">
+          <div class="size-dot" style="background:#1E90FF;"></div>
+          <span class="size-name">M – Medium</span>
+          <span class="size-count" id="sl-m-count"></span>
+        </div>
+        <div class="size-stats">
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-m-mean">—</div>
+            <div class="size-stat-lbl">Średnia</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-m-p50">—</div>
+            <div class="size-stat-lbl">P50</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-m-p85">—</div>
+            <div class="size-stat-lbl">P85</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-m-p95">—</div>
+            <div class="size-stat-lbl">P95</div>
+          </div>
+        </div>
       </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#DC143C;"></div>
-        <span>L – Large</span>
+
+      <hr class="side-legend-divider">
+
+      <!-- L -->
+      <div class="size-block">
+        <div class="size-header">
+          <div class="size-dot" style="background:#DC143C;"></div>
+          <span class="size-name">L – Large</span>
+          <span class="size-count" id="sl-l-count"></span>
+        </div>
+        <div class="size-stats">
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-l-mean">—</div>
+            <div class="size-stat-lbl">Średnia</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-l-p50">—</div>
+            <div class="size-stat-lbl">P50</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-l-p85">—</div>
+            <div class="size-stat-lbl">P85</div>
+          </div>
+          <div class="size-stat-item">
+            <div class="size-stat-val" id="sl-l-p95">—</div>
+            <div class="size-stat-lbl">P95</div>
+          </div>
+        </div>
       </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:rgba(255,255,255,0.55);border:1px dashed #aaa;"></div>
-        <span>Percentyle / Średnia</span>
+
+      <hr class="side-legend-divider">
+
+      <!-- Annotation lines legend -->
+      <div class="legend-lines">
+        <div class="legend-line-item">
+          <div class="legend-line-swatch" style="background:#ffffff; height:2px; border-top: 2px dashed #ffffff;"></div>
+          <span>Średnia (wszystkie)</span>
+        </div>
+        <div class="legend-line-item">
+          <div class="legend-line-swatch" style="border-top: 2px dashed #4fc3f7;"></div>
+          <span>P50</span>
+        </div>
+        <div class="legend-line-item">
+          <div class="legend-line-swatch" style="border-top: 2px dashed #ffa040;"></div>
+          <span>P85</span>
+        </div>
+        <div class="legend-line-item">
+          <div class="legend-line-swatch" style="border-top: 2px dashed #ff5050;"></div>
+          <span>P95</span>
+        </div>
       </div>
     </div>
-    <canvas id="histogramChart"></canvas>
+  </div>
+
+  <!-- Add Data Form -->
+  <div class="add-form-card">
+    <h2>➕ Dodaj nowy wpis</h2>
+    <div class="add-form-row">
+      <div class="form-group">
+        <label for="input-days">Czas realizacji (dni)</label>
+        <input type="number" id="input-days" min="1" max="9999" placeholder="np. 45" />
+      </div>
+      <div class="form-group">
+        <label for="input-size">Rozmiar</label>
+        <select id="input-size">
+          <option value="S">S – Small</option>
+          <option value="M">M – Medium</option>
+          <option value="L">L – Large</option>
+        </select>
+      </div>
+      <button class="add-btn" onclick="addEntry()">
+        <span>＋</span> Dodaj
+      </button>
+    </div>
+    <div class="add-feedback" id="add-feedback"></div>
   </div>
 
   <!-- Anthem -->
@@ -178,7 +479,7 @@
 
 <script>
 // =========================================================
-// RAW DATA
+// RAW DATA  (mutable – entries can be added at runtime)
 // =========================================================
 const rawData = [
   {size:'S', days:49},{size:'S', days:48},{size:'S', days:87},
@@ -196,70 +497,104 @@ const rawData = [
 ];
 
 // =========================================================
-// STATISTICS
+// HELPERS
 // =========================================================
-const allDays = rawData.map(d => d.days).sort((a, b) => a - b);
-const n = allDays.length;
-
 function pct(arr, p) {
-  const idx = (p / 100) * (arr.length - 1);
+  if (!arr.length) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const idx = (p / 100) * (sorted.length - 1);
   const lo = Math.floor(idx), hi = Math.ceil(idx);
-  if (lo === hi) return arr[lo];
-  return arr[lo] + (idx - lo) * (arr[hi] - arr[lo]);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (idx - lo) * (sorted[hi] - sorted[lo]);
 }
 
-const meanVal   = allDays.reduce((s, v) => s + v, 0) / n;
-const medianVal = pct(allDays, 50);
-const p50       = pct(allDays, 50);
-const p85       = pct(allDays, 85);
-const p95       = pct(allDays, 95);
+function mean(arr) {
+  if (!arr.length) return 0;
+  return arr.reduce((s, v) => s + v, 0) / arr.length;
+}
 
-document.getElementById('stat-mean').textContent   = meanVal.toFixed(1);
-document.getElementById('stat-median').textContent = medianVal.toFixed(1);
-document.getElementById('stat-p50').textContent    = p50.toFixed(1);
-document.getElementById('stat-p85').textContent    = p85.toFixed(1);
-document.getElementById('stat-p95').textContent    = p95.toFixed(1);
+// =========================================================
+// OVERALL STATS  (stat cards at the top)
+// =========================================================
+function updateOverallStats() {
+  const allDays = rawData.map(d => d.days).sort((a, b) => a - b);
+  const meanVal   = mean(allDays);
+  const medianVal = pct(allDays, 50);
+  const p50       = pct(allDays, 50);
+  const p85       = pct(allDays, 85);
+  const p95       = pct(allDays, 95);
+
+  document.getElementById('stat-mean').textContent   = meanVal.toFixed(1);
+  document.getElementById('stat-median').textContent = medianVal.toFixed(1);
+  document.getElementById('stat-p50').textContent    = p50.toFixed(1);
+  document.getElementById('stat-p85').textContent    = p85.toFixed(1);
+  document.getElementById('stat-p95').textContent    = p95.toFixed(1);
+
+  return { meanVal, p50, p85, p95 };
+}
+
+// =========================================================
+// PER-SIZE STATS  (side legend)
+// =========================================================
+function updateSizeLegend() {
+  ['S', 'M', 'L'].forEach(sz => {
+    const days = rawData.filter(d => d.size === sz).map(d => d.days);
+    const key = sz.toLowerCase();
+    document.getElementById(`sl-${key}-count`).textContent = `n=${days.length}`;
+    if (days.length === 0) {
+      ['mean','p50','p85','p95'].forEach(k => {
+        document.getElementById(`sl-${key}-${k}`).textContent = '—';
+      });
+      return;
+    }
+    document.getElementById(`sl-${key}-mean`).textContent = mean(days).toFixed(1);
+    document.getElementById(`sl-${key}-p50`).textContent  = pct(days, 50).toFixed(1);
+    document.getElementById(`sl-${key}-p85`).textContent  = pct(days, 85).toFixed(1);
+    document.getElementById(`sl-${key}-p95`).textContent  = pct(days, 95).toFixed(1);
+  });
+}
 
 // =========================================================
 // HISTOGRAM BUCKETS  (width = 50)
 // =========================================================
 const BUCKET = 50;
-const maxDay  = Math.max(...allDays);
-const numBuckets = Math.ceil(maxDay / BUCKET);
 
-const labels = [];
-const sData = [], mData = [], lData = [];
+function buildBuckets() {
+  const allDays = rawData.map(d => d.days);
+  const maxDay  = Math.max(...allDays);
+  const numBuckets = Math.ceil(maxDay / BUCKET);
 
-for (let i = 0; i < numBuckets; i++) {
-  const lo = i * BUCKET, hi = (i + 1) * BUCKET;
-  labels.push(`${lo + 1}–${hi}`);
-  let s = 0, m = 0, l = 0;
-  rawData.forEach(d => {
-    if (d.days > lo && d.days <= hi) {
-      if (d.size === 'S') s++;
-      else if (d.size === 'M') m++;
-      else l++;
-    }
-  });
-  sData.push(s);
-  mData.push(m);
-  lData.push(l);
+  const labels = [];
+  const sData = [], mData = [], lData = [];
+
+  for (let i = 0; i < numBuckets; i++) {
+    const lo = i * BUCKET, hi = (i + 1) * BUCKET;
+    labels.push(`${lo + 1}–${hi}`);
+    let s = 0, m = 0, l = 0;
+    rawData.forEach(d => {
+      if (d.days > lo && d.days <= hi) {
+        if (d.size === 'S') s++;
+        else if (d.size === 'M') m++;
+        else l++;
+      }
+    });
+    sData.push(s);
+    mData.push(m);
+    lData.push(l);
+  }
+  return { labels, sData, mData, lData, numBuckets };
 }
 
 // =========================================================
-// PERCENTILE → bucket x-index mapping
-// Returns a float x-position within bucket label space
+// CUSTOM PLUGIN – vertical annotation lines for overall stats
 // =========================================================
-function valToX(val) {
-  // find which bucket this value belongs to (0-based index)
-  return val / BUCKET - 0.5; // center of bucket at index floor(val/BUCKET)
-}
-
-// Custom plugin: draw vertical annotation lines for stats
 const annotationsPlugin = {
   id: 'statsLines',
   afterDraw(chart) {
     const { ctx, scales: { x, y } } = chart;
+    const numBuckets = chart._numBuckets;
+    const { meanVal, p50, p85, p95 } = chart._overallStats;
+
     const lines = [
       { val: meanVal, color: '#ffffff', dash: [6, 4], label: `Śr ${meanVal.toFixed(0)}` },
       { val: p50,     color: '#4fc3f7', dash: [5, 3], label: `P50 ${p50.toFixed(0)}` },
@@ -269,8 +604,6 @@ const annotationsPlugin = {
 
     ctx.save();
     lines.forEach(({ val, color, dash, label }) => {
-      // map val to pixel x: val in [0..maxDay], x-axis spans numBuckets buckets
-      // each bucket width = (x.right - x.left) / numBuckets
       const bucketWidth = (x.right - x.left) / numBuckets;
       const px = x.left + (val / BUCKET) * bucketWidth;
 
@@ -292,78 +625,142 @@ const annotationsPlugin = {
   }
 };
 
-// =========================================================
-// CHART
-// =========================================================
 Chart.register(annotationsPlugin);
 
-const ctx = document.getElementById('histogramChart').getContext('2d');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels,
-    datasets: [
-      {
-        label: 'S',
-        data: sData,
-        backgroundColor: 'rgba(255,215,0,0.85)',
-        borderColor: '#FFD700',
-        borderWidth: 1
+// =========================================================
+// CHART – created once, updated on new data
+// =========================================================
+let histChart = null;
+
+function initChart() {
+  const { labels, sData, mData, lData, numBuckets } = buildBuckets();
+  const overallStats = updateOverallStats();
+
+  const canvasCtx = document.getElementById('histogramChart').getContext('2d');
+  histChart = new Chart(canvasCtx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'S',
+          data: sData,
+          backgroundColor: 'rgba(255,215,0,0.85)',
+          borderColor: '#FFD700',
+          borderWidth: 1
+        },
+        {
+          label: 'M',
+          data: mData,
+          backgroundColor: 'rgba(30,144,255,0.85)',
+          borderColor: '#1E90FF',
+          borderWidth: 1
+        },
+        {
+          label: 'L',
+          data: lData,
+          backgroundColor: 'rgba(220,20,60,0.85)',
+          borderColor: '#DC143C',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => `Czas realizacji: ${items[0].label} dni`,
+            label: item => ` ${item.dataset.label}: ${item.raw} zadań`
+          }
+        }
       },
-      {
-        label: 'M',
-        data: mData,
-        backgroundColor: 'rgba(30,144,255,0.85)',
-        borderColor: '#1E90FF',
-        borderWidth: 1
-      },
-      {
-        label: 'L',
-        data: lData,
-        backgroundColor: 'rgba(220,20,60,0.85)',
-        borderColor: '#DC143C',
-        borderWidth: 1
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    layout: { padding: { top: 24 } },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          title: items => `Czas realizacji: ${items[0].label} dni`,
-          label: item => ` ${item.dataset.label}: ${item.raw} zadań`
+      scales: {
+        x: {
+          stacked: true,
+          title: {
+            display: true,
+            text: 'Czas realizacji (dni)',
+            color: '#90a0b7',
+            font: { size: 13 }
+          },
+          grid: { color: 'rgba(255,255,255,0.08)' },
+          ticks: { color: '#90a0b7' }
+        },
+        y: {
+          stacked: true,
+          title: {
+            display: true,
+            text: 'Liczba zadań',
+            color: '#90a0b7',
+            font: { size: 13 }
+          },
+          grid: { color: 'rgba(255,255,255,0.08)' },
+          ticks: { color: '#90a0b7', stepSize: 1 }
         }
       }
-    },
-    scales: {
-      x: {
-        stacked: true,
-        title: {
-          display: true,
-          text: 'Czas realizacji (dni)',
-          color: '#90a0b7',
-          font: { size: 13 }
-        },
-        grid: { color: 'rgba(255,255,255,0.08)' },
-        ticks: { color: '#90a0b7' }
-      },
-      y: {
-        stacked: true,
-        title: {
-          display: true,
-          text: 'Liczba zadań',
-          color: '#90a0b7',
-          font: { size: 13 }
-        },
-        grid: { color: 'rgba(255,255,255,0.08)' },
-        ticks: { color: '#90a0b7', stepSize: 1 }
-      }
     }
+  });
+
+  histChart._numBuckets = numBuckets;
+  histChart._overallStats = overallStats;
+}
+
+function refreshChart() {
+  const { labels, sData, mData, lData, numBuckets } = buildBuckets();
+  const overallStats = updateOverallStats();
+
+  histChart.data.labels = labels;
+  histChart.data.datasets[0].data = sData;
+  histChart.data.datasets[1].data = mData;
+  histChart.data.datasets[2].data = lData;
+  histChart._numBuckets = numBuckets;
+  histChart._overallStats = overallStats;
+  histChart.update();
+}
+
+// =========================================================
+// ADD ENTRY
+// =========================================================
+let feedbackTimer = null;
+
+function addEntry() {
+  const daysInput = document.getElementById('input-days');
+  const sizeInput = document.getElementById('input-size');
+  const feedback  = document.getElementById('add-feedback');
+
+  const days = parseInt(daysInput.value, 10);
+  if (!days || days < 1 || days > 9999) {
+    feedback.style.color = '#ff7070';
+    feedback.textContent = '⚠ Podaj prawidłową liczbę dni (1–9999).';
+    return;
   }
+  const size = sizeInput.value;
+
+  rawData.push({ size, days });
+  refreshChart();
+  updateSizeLegend();
+
+  daysInput.value = '';
+  feedback.style.color = '#4fc3f7';
+  feedback.textContent = `✔ Dodano: ${size} – ${days} dni`;
+
+  if (feedbackTimer) clearTimeout(feedbackTimer);
+  feedbackTimer = setTimeout(() => { feedback.textContent = ''; }, 3000);
+}
+
+// Allow pressing Enter in the days input
+document.getElementById('input-days').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addEntry();
 });
+
+// =========================================================
+// INITIALISE
+// =========================================================
+initChart();
+updateSizeLegend();
 
 // =========================================================
 // MAZUREK DĄBROWSKIEGO  –  Web Audio API
