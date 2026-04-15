@@ -472,9 +472,12 @@ function onAnthemEnd() {
 
 function stopAnthem() {
   if (stopHandle) clearTimeout(stopHandle);
-  scheduledNodes.forEach(n => { try { n.stop(); } catch(_) {} });
+  // stop() may throw if the node already finished – that is expected and safe
+  scheduledNodes.forEach(n => { try { n.stop(); } catch (ignored) { /* already stopped */ } });
   scheduledNodes = [];
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (audioCtx) {
+    audioCtx.close().then(() => { audioCtx = null; });
+  }
   onAnthemEnd();
 }
 
@@ -489,21 +492,22 @@ function toggleAnthem() {
   scheduleAnthem();
 }
 
-// Auto-play on first user interaction with the page
-(function tryAutoplay() {
-  const ac = new (window.AudioContext || window.webkitAudioContext)();
-  if (ac.state === 'running') {
-    ac.close();
-    // slight delay so chart renders first
-    setTimeout(toggleAnthem, 600);
+// Auto-play on first user interaction with the page.
+// AudioContext starts in 'suspended' state until a user gesture on most browsers;
+// if it is already 'running' (some desktop browsers), play immediately.
+document.addEventListener('click', function firstClick() {
+  if (!isPlaying) toggleAnthem();
+}, { once: true });
+
+if ((window.AudioContext || window.webkitAudioContext)) {
+  const probe = new (window.AudioContext || window.webkitAudioContext)();
+  if (probe.state === 'running') {
+    probe.close();
+    setTimeout(toggleAnthem, 600); // slight delay so chart renders first
   } else {
-    ac.close();
-    // wait for first click anywhere
-    document.addEventListener('click', function firstClick() {
-      if (!isPlaying) toggleAnthem();
-    }, { once: true });
+    probe.close();
   }
-})();
+}
 </script>
 </body>
 </html>
