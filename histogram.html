@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Histogram Czasów Realizacji</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 32px 20px 48px;
+      color: #e8ecf5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.9em;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 28px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ---------- stat cards ---------- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 20px 14px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+
+    .stat-value {
+      font-size: 2.1em;
+      font-weight: 700;
+      color: #4fc3f7;
+      line-height: 1.1;
+    }
+    .stat-label {
+      font-size: 0.78em;
+      color: #90a0b7;
+      margin-top: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    /* ---------- chart card ---------- */
+    .chart-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 28px;
+      backdrop-filter: blur(8px);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.92em; }
+    .legend-dot { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
+
+    /* ---------- anthem button ---------- */
+    .anthem-wrap { text-align: center; }
+
+    .anthem-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 36px;
+      background: linear-gradient(135deg, #c0392b, #e74c3c);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 1.05em;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      box-shadow: 0 4px 18px rgba(231,76,60,0.45);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .anthem-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 24px rgba(231,76,60,0.65);
+    }
+    .anthem-btn:active { transform: translateY(0); }
+
+    .anthem-note {
+      margin-top: 10px;
+      font-size: 0.78em;
+      color: #6a7f9a;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🎯 Histogram Czasów Realizacji</h1>
+
+  <!-- Statistics -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-mean">—</div>
+      <div class="stat-label">Średnia</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-median">—</div>
+      <div class="stat-label">Mediana</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-p50">—</div>
+      <div class="stat-label">50. Percentyl</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-p85">—</div>
+      <div class="stat-label">85. Percentyl</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-p95">—</div>
+      <div class="stat-label">95. Percentyl</div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-card">
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#FFD700;"></div>
+        <span>S – Small</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#1E90FF;"></div>
+        <span>M – Medium</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#DC143C;"></div>
+        <span>L – Large</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:rgba(255,255,255,0.55);border:1px dashed #aaa;"></div>
+        <span>Percentyle / Średnia</span>
+      </div>
+    </div>
+    <canvas id="histogramChart"></canvas>
+  </div>
+
+  <!-- Anthem -->
+  <div class="anthem-wrap">
+    <button class="anthem-btn" id="anthemBtn" onclick="toggleAnthem()">
+      <span>🎵</span>
+      <span id="anthemBtnLabel">Zagraj Mazurek Dąbrowskiego</span>
+    </button>
+    <div class="anthem-note">Kliknij, aby zagrać hymn podczas przeglądania wykresu</div>
+  </div>
+
+</div>
+
+<script>
+// =========================================================
+// RAW DATA
+// =========================================================
+const rawData = [
+  {size:'S', days:49},{size:'S', days:48},{size:'S', days:87},
+  {size:'M', days:57},{size:'M', days:148},{size:'S', days:53},
+  {size:'S', days:45},{size:'M', days:145},{size:'L', days:105},
+  {size:'S', days:5},{size:'L', days:163},{size:'S', days:43},
+  {size:'M', days:415},{size:'L', days:123},{size:'M', days:103},
+  {size:'L', days:104},{size:'L', days:302},{size:'L', days:158},
+  {size:'L', days:98},{size:'S', days:52},{size:'M', days:95},
+  {size:'S', days:70},{size:'M', days:95},{size:'M', days:101},
+  {size:'M', days:57},{size:'M', days:57},{size:'S', days:53},
+  {size:'L', days:137},{size:'S', days:73},{size:'M', days:60},
+  {size:'S', days:126},{size:'M', days:57},{size:'L', days:124},
+  {size:'M', days:75},{size:'M', days:89},{size:'S', days:44}
+];
+
+// =========================================================
+// STATISTICS
+// =========================================================
+const allDays = rawData.map(d => d.days).sort((a, b) => a - b);
+const n = allDays.length;
+
+function pct(arr, p) {
+  const idx = (p / 100) * (arr.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return arr[lo];
+  return arr[lo] + (idx - lo) * (arr[hi] - arr[lo]);
+}
+
+const meanVal   = allDays.reduce((s, v) => s + v, 0) / n;
+const medianVal = pct(allDays, 50);
+const p50       = pct(allDays, 50);
+const p85       = pct(allDays, 85);
+const p95       = pct(allDays, 95);
+
+document.getElementById('stat-mean').textContent   = meanVal.toFixed(1);
+document.getElementById('stat-median').textContent = medianVal.toFixed(1);
+document.getElementById('stat-p50').textContent    = p50.toFixed(1);
+document.getElementById('stat-p85').textContent    = p85.toFixed(1);
+document.getElementById('stat-p95').textContent    = p95.toFixed(1);
+
+// =========================================================
+// HISTOGRAM BUCKETS  (width = 50)
+// =========================================================
+const BUCKET = 50;
+const maxDay  = Math.max(...allDays);
+const numBuckets = Math.ceil(maxDay / BUCKET);
+
+const labels = [];
+const sData = [], mData = [], lData = [];
+
+for (let i = 0; i < numBuckets; i++) {
+  const lo = i * BUCKET, hi = (i + 1) * BUCKET;
+  labels.push(`${lo + 1}–${hi}`);
+  let s = 0, m = 0, l = 0;
+  rawData.forEach(d => {
+    if (d.days > lo && d.days <= hi) {
+      if (d.size === 'S') s++;
+      else if (d.size === 'M') m++;
+      else l++;
+    }
+  });
+  sData.push(s);
+  mData.push(m);
+  lData.push(l);
+}
+
+// =========================================================
+// PERCENTILE → bucket x-index mapping
+// Returns a float x-position within bucket label space
+// =========================================================
+function valToX(val) {
+  // find which bucket this value belongs to (0-based index)
+  return val / BUCKET - 0.5; // center of bucket at index floor(val/BUCKET)
+}
+
+// Custom plugin: draw vertical annotation lines for stats
+const annotationsPlugin = {
+  id: 'statsLines',
+  afterDraw(chart) {
+    const { ctx, scales: { x, y } } = chart;
+    const lines = [
+      { val: meanVal, color: '#ffffff', dash: [6, 4], label: `Śr ${meanVal.toFixed(0)}` },
+      { val: p50,     color: '#4fc3f7', dash: [5, 3], label: `P50 ${p50.toFixed(0)}` },
+      { val: p85,     color: '#ffa040', dash: [5, 3], label: `P85 ${p85.toFixed(0)}` },
+      { val: p95,     color: '#ff5050', dash: [5, 3], label: `P95 ${p95.toFixed(0)}` },
+    ];
+
+    ctx.save();
+    lines.forEach(({ val, color, dash, label }) => {
+      // map val to pixel x: val in [0..maxDay], x-axis spans numBuckets buckets
+      // each bucket width = (x.right - x.left) / numBuckets
+      const bucketWidth = (x.right - x.left) / numBuckets;
+      const px = x.left + (val / BUCKET) * bucketWidth;
+
+      ctx.beginPath();
+      ctx.setLineDash(dash);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.moveTo(px, y.top);
+      ctx.lineTo(px, y.bottom);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.font = '11px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, px, y.top - 4);
+    });
+    ctx.restore();
+  }
+};
+
+// =========================================================
+// CHART
+// =========================================================
+Chart.register(annotationsPlugin);
+
+const ctx = document.getElementById('histogramChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      {
+        label: 'S',
+        data: sData,
+        backgroundColor: 'rgba(255,215,0,0.85)',
+        borderColor: '#FFD700',
+        borderWidth: 1
+      },
+      {
+        label: 'M',
+        data: mData,
+        backgroundColor: 'rgba(30,144,255,0.85)',
+        borderColor: '#1E90FF',
+        borderWidth: 1
+      },
+      {
+        label: 'L',
+        data: lData,
+        backgroundColor: 'rgba(220,20,60,0.85)',
+        borderColor: '#DC143C',
+        borderWidth: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    layout: { padding: { top: 24 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: items => `Czas realizacji: ${items[0].label} dni`,
+          label: item => ` ${item.dataset.label}: ${item.raw} zadań`
+        }
+      }
+    },
+    scales: {
+      x: {
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Czas realizacji (dni)',
+          color: '#90a0b7',
+          font: { size: 13 }
+        },
+        grid: { color: 'rgba(255,255,255,0.08)' },
+        ticks: { color: '#90a0b7' }
+      },
+      y: {
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Liczba zadań',
+          color: '#90a0b7',
+          font: { size: 13 }
+        },
+        grid: { color: 'rgba(255,255,255,0.08)' },
+        ticks: { color: '#90a0b7', stepSize: 1 }
+      }
+    }
+  }
+});
+
+// =========================================================
+// MAZUREK DĄBROWSKIEGO  –  Web Audio API
+// =========================================================
+// Notes in G major (Hz)
+const F = {
+  G3:196.00, A3:220.00, B3:246.94,
+  C4:261.63, D4:293.66, E4:329.63, Fis4:369.99,
+  G4:392.00, A4:440.00, B4:493.88,
+  C5:523.25, D5:587.33,
+  R:0
+};
+
+// BPM 108  (quarter note ≈ 556 ms)
+const _Q = 60000 / 108;
+const Q = _Q, H = _Q * 2, DQ = _Q * 1.5, E = _Q / 2;
+
+/*  Mazurek Dąbrowskiego – 1st verse + chorus (G major, starts on D4 = dominant)
+    Layout: [noteKey, durationMs]
+    Verse:
+      "Jeszcze Polska nie zginęła"    D D E F# | G . E . | D . . .
+      "kiedy my żyjemy"               C C D E  | F#. D . | C . . .
+      "Co nam obca przemoc wzięła"    B3 B3 C D  | E . C . | B3 . . .
+      "Szablą odbierzemy"             A3 A3 B3 C | D . B3 .| A3 . . .
+    Chorus:
+      "Marsz, marsz Dąbrowski"        G4 G4 A4 | G4 . F#4 | G4 . . .
+      "z ziemi włoskiej do Polski"    E4 E4 F#4 | E4 . D4  | E4 . . .
+      "za twoim przewodem"            D4 D4 E4 | D4 . C4  | D4 . . .
+      "złączym się z narodem"         B3 C4 D4  | G3 . .   | G3 . . .
+*/
+const melody = [
+  // -- VERSE --
+  ['D4',Q],['D4',Q],['E4',Q], ['Fis4',DQ],['E4',E], ['D4',H],
+  ['C4',Q],['C4',Q],['D4',Q], ['E4',DQ],['D4',E],   ['C4',H],
+  ['B3',Q],['B3',Q],['C4',Q], ['D4',DQ],['C4',E],   ['B3',H],
+  ['A3',Q],['A3',Q],['B3',Q], ['C4',DQ],['B3',E],   ['A3',H], ['R',Q],
+  // -- CHORUS --
+  ['G4',Q],['G4',Q],['A4',Q], ['G4',DQ],['Fis4',E], ['G4',H],
+  ['E4',Q],['E4',Q],['Fis4',Q],['E4',DQ],['D4',E],  ['E4',H],
+  ['D4',Q],['D4',Q],['E4',Q], ['D4',DQ],['C4',E],   ['D4',H],
+  ['B3',Q],['C4',E],['D4',E], ['G3',H],  ['G3',H],   ['R',Q],
+  // -- VERSE repeat --
+  ['D4',Q],['D4',Q],['E4',Q], ['Fis4',DQ],['E4',E], ['D4',H],
+  ['C4',Q],['C4',Q],['D4',Q], ['E4',DQ],['D4',E],   ['C4',H],
+  ['B3',Q],['B3',Q],['C4',Q], ['D4',DQ],['C4',E],   ['B3',H],
+  ['A3',Q],['A3',Q],['B3',Q], ['C4',DQ],['B3',E],   ['A3',H], ['R',Q],
+  // -- CHORUS repeat --
+  ['G4',Q],['G4',Q],['A4',Q], ['G4',DQ],['Fis4',E], ['G4',H],
+  ['E4',Q],['E4',Q],['Fis4',Q],['E4',DQ],['D4',E],  ['E4',H],
+  ['D4',Q],['D4',Q],['E4',Q], ['D4',DQ],['C4',E],   ['D4',H],
+  ['B3',Q],['C4',E],['D4',E], ['G3',H],  ['G3',H],
+];
+
+let audioCtx = null;
+let isPlaying = false;
+let stopHandle = null;
+let scheduledNodes = [];
+
+function buildAudioCtx() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function scheduleAnthem() {
+  const ac = buildAudioCtx();
+  scheduledNodes = [];
+  let t = ac.currentTime + 0.1;
+
+  melody.forEach(([note, durMs]) => {
+    const freq = F[note];
+    const durS = durMs / 1000;
+
+    if (freq > 0) {
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
+      gain.gain.setValueAtTime(0.28, t + durS * 0.78);
+      gain.gain.linearRampToValueAtTime(0, t + durS * 0.96);
+
+      osc.connect(gain);
+      gain.connect(ac.destination);
+
+      osc.start(t);
+      osc.stop(t + durS);
+      scheduledNodes.push(osc);
+    }
+    t += durS;
+  });
+
+  const totalMs = melody.reduce((s, [, d]) => s + d, 0);
+  stopHandle = setTimeout(onAnthemEnd, totalMs + 300);
+}
+
+function onAnthemEnd() {
+  isPlaying = false;
+  document.getElementById('anthemBtnLabel').textContent = 'Zagraj Mazurek Dąbrowskiego';
+  document.getElementById('anthemBtn').querySelector('span').textContent = '🎵';
+}
+
+function stopAnthem() {
+  if (stopHandle) clearTimeout(stopHandle);
+  scheduledNodes.forEach(n => { try { n.stop(); } catch(_) {} });
+  scheduledNodes = [];
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  onAnthemEnd();
+}
+
+function toggleAnthem() {
+  if (isPlaying) {
+    stopAnthem();
+    return;
+  }
+  isPlaying = true;
+  document.getElementById('anthemBtnLabel').textContent = 'Zatrzymaj';
+  document.getElementById('anthemBtn').querySelector('span').textContent = '⏹';
+  scheduleAnthem();
+}
+
+// Auto-play on first user interaction with the page
+(function tryAutoplay() {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'running') {
+    ac.close();
+    // slight delay so chart renders first
+    setTimeout(toggleAnthem, 600);
+  } else {
+    ac.close();
+    // wait for first click anywhere
+    document.addEventListener('click', function firstClick() {
+      if (!isPlaying) toggleAnthem();
+    }, { once: true });
+  }
+})();
+</script>
+</body>
+</html>
