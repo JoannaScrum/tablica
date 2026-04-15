@@ -201,6 +201,35 @@
     }
     .btn-reset:hover { background: rgba(255,255,255,0.13); }
 
+    .perc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88em;
+    }
+    .perc-table th {
+      color: #90a0b7;
+      font-weight: 600;
+      text-align: center;
+      padding: 3px 6px 6px;
+      font-size: 0.82em;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .perc-table td {
+      text-align: center;
+      padding: 4px 6px;
+    }
+    .perc-table td:first-child {
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.95em;
+    }
+    .perc-table input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: #4fc3f7;
+      cursor: pointer;
+    }
+
     .filter-info {
       text-align: center;
       font-size: 0.8em;
@@ -300,6 +329,36 @@
           </div>
         </div>
 
+        <!-- Percentyle per rozmiar -->
+        <div class="control-group">
+          <label>Linie percentyli per rozmiar</label>
+          <table class="perc-table">
+            <thead>
+              <tr><th></th><th>50p</th><th>85p</th><th>95p</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color:#FFD700">S</td>
+                <td><input type="checkbox" id="chkP_S_50" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_S_85" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_S_95" onchange="applyFilters()"></td>
+              </tr>
+              <tr>
+                <td style="color:#4fc3f7">M</td>
+                <td><input type="checkbox" id="chkP_M_50" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_M_85" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_M_95" onchange="applyFilters()"></td>
+              </tr>
+              <tr>
+                <td style="color:#ef5350">L</td>
+                <td><input type="checkbox" id="chkP_L_50" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_L_85" onchange="applyFilters()"></td>
+                <td><input type="checkbox" id="chkP_L_95" onchange="applyFilters()"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <button class="btn-filter" onclick="applyFilters()">🔍 Filtruj</button>
         <button class="btn-reset" onclick="resetFilters()">↺ Resetuj filtry</button>
         <div class="filter-info" id="filterInfo"></div>
@@ -390,29 +449,58 @@
     const p50 = Math.round(percentile(days, 50));
     const p85 = Math.round(percentile(days, 85));
     const p95 = Math.round(percentile(days, 95));
-    return {
-      p50: p50, p85: p85, p95: p95,
-      annotations: {
-        line50: {
-          type: 'line', yMin: p50, yMax: p50,
-          borderColor: '#a8e063', borderWidth: 2,
-          borderDash: [6, 4],
-          label: { display: true, content: `50p: ${p50} dni`, position: 'start', backgroundColor: 'rgba(168,224,99,0.15)', color: '#a8e063', font: { size: 11 } }
-        },
-        line85: {
-          type: 'line', yMin: p85, yMax: p85,
-          borderColor: '#ffa726', borderWidth: 2,
-          borderDash: [6, 4],
-          label: { display: true, content: `85p: ${p85} dni`, position: 'start', backgroundColor: 'rgba(255,167,38,0.15)', color: '#ffa726', font: { size: 11 } }
-        },
-        line95: {
-          type: 'line', yMin: p95, yMax: p95,
-          borderColor: '#ef5350', borderWidth: 2,
-          borderDash: [6, 4],
-          label: { display: true, content: `95p: ${p95} dni`, position: 'start', backgroundColor: 'rgba(239,83,80,0.15)', color: '#ef5350', font: { size: 11 } }
-        },
-      }
+    const annotations = {
+      line50: {
+        type: 'line', yMin: p50, yMax: p50,
+        borderColor: '#a8e063', borderWidth: 2,
+        borderDash: [6, 4],
+        label: { display: true, content: `50p: ${p50} dni`, position: 'start', backgroundColor: 'rgba(168,224,99,0.15)', color: '#a8e063', font: { size: 11 } }
+      },
+      line85: {
+        type: 'line', yMin: p85, yMax: p85,
+        borderColor: '#ffa726', borderWidth: 2,
+        borderDash: [6, 4],
+        label: { display: true, content: `85p: ${p85} dni`, position: 'start', backgroundColor: 'rgba(255,167,38,0.15)', color: '#ffa726', font: { size: 11 } }
+      },
+      line95: {
+        type: 'line', yMin: p95, yMax: p95,
+        borderColor: '#ef5350', borderWidth: 2,
+        borderDash: [6, 4],
+        label: { display: true, content: `95p: ${p95} dni`, position: 'start', backgroundColor: 'rgba(239,83,80,0.15)', color: '#ef5350', font: { size: 11 } }
+      },
     };
+
+    /* Per-size percentile lines */
+    const sizeColors = { S: '#FFD700', M: '#4fc3f7', L: '#ef5350' };
+    const percDash = { 50: [4, 3], 85: [10, 4], 95: [2, 3] };
+    const bySize = { S: [], M: [], L: [] };
+    data.forEach(d => { if (bySize[d.size]) bySize[d.size].push(d.days); });
+
+    ['S', 'M', 'L'].forEach(size => {
+      [50, 85, 95].forEach(p => {
+        const chk = document.getElementById(`chkP_${size}_${p}`);
+        if (!chk || !chk.checked) return;
+        const sizeData = bySize[size];
+        if (!sizeData.length) return;
+        const val = Math.round(percentile(sizeData, p));
+        const color = sizeColors[size];
+        annotations[`line_${size}_${p}`] = {
+          type: 'line', yMin: val, yMax: val,
+          borderColor: color, borderWidth: 1.5,
+          borderDash: percDash[p],
+          label: {
+            display: true,
+            content: `${size}-${p}p: ${val}d`,
+            position: 'end',
+            backgroundColor: `${color}22`,
+            color,
+            font: { size: 10 }
+          }
+        };
+      });
+    });
+
+    return { p50, p85, p95, annotations };
   }
 
   /* ── Update stat cards ── */
@@ -537,6 +625,12 @@
     document.getElementById('chkS').checked = true;
     document.getElementById('chkM').checked = true;
     document.getElementById('chkL').checked = true;
+    ['S', 'M', 'L'].forEach(size => {
+      [50, 85, 95].forEach(p => {
+        const chk = document.getElementById(`chkP_${size}_${p}`);
+        if (chk) chk.checked = false;
+      });
+    });
     initFilterBounds();
     updateChart(RAW_DATA);
     document.getElementById('filterInfo').textContent = '';
