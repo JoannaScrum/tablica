@@ -290,6 +290,139 @@
       color: #6a7f9a;
     }
 
+    /* ---------- filter card ---------- */
+    .filter-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 18px 24px;
+      margin-bottom: 28px;
+      backdrop-filter: blur(8px);
+    }
+
+    .filter-card h2 {
+      font-size: 1em;
+      font-weight: 600;
+      color: #e8ecf5;
+      margin-bottom: 14px;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .filter-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-section-label {
+      font-size: 0.75em;
+      color: #90a0b7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* size toggle buttons */
+    .size-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 34px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      font-size: 0.9em;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+      opacity: 0.38;
+    }
+    .size-toggle-btn.active { opacity: 1; }
+    .size-toggle-btn:hover { transform: translateY(-2px); }
+
+    .size-toggle-btn[data-size="S"] {
+      background: rgba(255,215,0,0.18);
+      border-color: #FFD700;
+      color: #FFD700;
+      box-shadow: 0 0 0 0 rgba(255,215,0,0);
+    }
+    .size-toggle-btn[data-size="S"].active {
+      background: rgba(255,215,0,0.28);
+      box-shadow: 0 3px 10px rgba(255,215,0,0.35);
+    }
+    .size-toggle-btn[data-size="M"] {
+      background: rgba(30,144,255,0.18);
+      border-color: #1E90FF;
+      color: #6bb8ff;
+      box-shadow: 0 0 0 0 rgba(30,144,255,0);
+    }
+    .size-toggle-btn[data-size="M"].active {
+      background: rgba(30,144,255,0.28);
+      box-shadow: 0 3px 10px rgba(30,144,255,0.35);
+    }
+    .size-toggle-btn[data-size="L"] {
+      background: rgba(220,20,60,0.18);
+      border-color: #DC143C;
+      color: #ff6b80;
+      box-shadow: 0 0 0 0 rgba(220,20,60,0);
+    }
+    .size-toggle-btn[data-size="L"].active {
+      background: rgba(220,20,60,0.28);
+      box-shadow: 0 3px 10px rgba(220,20,60,0.35);
+    }
+
+    /* range inputs */
+    .filter-section input[type="number"] {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: #e8ecf5;
+      font-size: 0.95em;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 90px;
+    }
+    .filter-section input[type="number"]:focus { border-color: #4fc3f7; }
+
+    .filter-sep {
+      color: #90a0b7;
+      font-size: 0.9em;
+    }
+
+    .filter-reset-btn {
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #90a0b7;
+      font-size: 0.85em;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .filter-reset-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #e8ecf5;
+    }
+
+    .filter-active-note {
+      font-size: 0.75em;
+      color: #4fc3f7;
+      margin-top: 8px;
+      min-height: 1em;
+    }
+
     @media (max-width: 768px) {
       .chart-row { flex-direction: column; }
       .side-legend { flex: none; width: 100%; }
@@ -323,6 +456,27 @@
       <div class="stat-value" id="stat-p95">—</div>
       <div class="stat-label">95. Percentyl</div>
     </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-card">
+    <h2>🔍 Filtruj dane</h2>
+    <div class="filter-row">
+      <div class="filter-section">
+        <span class="filter-section-label">Rozmiar:</span>
+        <button class="size-toggle-btn active" data-size="S" onclick="toggleSize('S')">S</button>
+        <button class="size-toggle-btn active" data-size="M" onclick="toggleSize('M')">M</button>
+        <button class="size-toggle-btn active" data-size="L" onclick="toggleSize('L')">L</button>
+      </div>
+      <div class="filter-section">
+        <span class="filter-section-label">Czas realizacji (dni):</span>
+        <input type="number" id="filter-min" min="1" max="9999" placeholder="od" title="Minimalna liczba dni" />
+        <span class="filter-sep">–</span>
+        <input type="number" id="filter-max" min="1" max="9999" placeholder="do" title="Maksymalna liczba dni" />
+      </div>
+      <button class="filter-reset-btn" onclick="resetFilters()">↺ Reset</button>
+    </div>
+    <div class="filter-active-note" id="filter-note"></div>
   </div>
 
   <!-- Chart + Side Legend -->
@@ -497,8 +651,64 @@ const rawData = [
 ];
 
 // =========================================================
-// HELPERS
+// FILTER STATE
 // =========================================================
+const activeSizes = new Set(['S', 'M', 'L']);
+
+function getFilteredData() {
+  const minVal = parseInt(document.getElementById('filter-min').value, 10);
+  const maxVal = parseInt(document.getElementById('filter-max').value, 10);
+  return rawData.filter(d => {
+    if (!activeSizes.has(d.size)) return false;
+    if (!isNaN(minVal) && d.days < minVal) return false;
+    if (!isNaN(maxVal) && d.days > maxVal) return false;
+    return true;
+  });
+}
+
+function toggleSize(sz) {
+  if (activeSizes.has(sz)) {
+    activeSizes.delete(sz);
+  } else {
+    activeSizes.add(sz);
+  }
+  const btn = document.querySelector(`.size-toggle-btn[data-size="${sz}"]`);
+  btn.classList.toggle('active', activeSizes.has(sz));
+  applyFilters();
+}
+
+function resetFilters() {
+  activeSizes.add('S');
+  activeSizes.add('M');
+  activeSizes.add('L');
+  ['S','M','L'].forEach(sz => {
+    document.querySelector(`.size-toggle-btn[data-size="${sz}"]`).classList.add('active');
+  });
+  initFilterBounds();
+  applyFilters();
+}
+
+function initFilterBounds() {
+  const days = rawData.map(d => d.days);
+  document.getElementById('filter-min').value = Math.min(...days);
+  document.getElementById('filter-max').value = Math.max(...days);
+}
+
+function applyFilters() {
+  const filtered = getFilteredData();
+  const overallStats = updateOverallStats(filtered);
+  updateSizeLegend(filtered);
+  if (histChart) {
+    refreshChart(filtered, overallStats);
+  }
+  const minVal = document.getElementById('filter-min').value;
+  const maxVal = document.getElementById('filter-max').value;
+  const sizeList = [...activeSizes].sort().join(', ');
+  const note = document.getElementById('filter-note');
+  note.textContent = `Wyświetlono ${filtered.length} z ${rawData.length} wpisów  ·  rozmiary: ${sizeList || '—'}  ·  zakres: ${minVal}–${maxVal} dni`;
+}
+
+
 function pct(arr, p) {
   if (!arr.length) return 0;
   const sorted = [...arr].sort((a, b) => a - b);
@@ -516,19 +726,19 @@ function mean(arr) {
 // =========================================================
 // OVERALL STATS  (stat cards at the top)
 // =========================================================
-function updateOverallStats() {
-  const allDays = rawData.map(d => d.days).sort((a, b) => a - b);
+function updateOverallStats(data) {
+  const allDays = (data || rawData).map(d => d.days).sort((a, b) => a - b);
   const meanVal   = mean(allDays);
   const medianVal = pct(allDays, 50);
   const p50       = pct(allDays, 50);
   const p85       = pct(allDays, 85);
   const p95       = pct(allDays, 95);
 
-  document.getElementById('stat-mean').textContent   = meanVal.toFixed(1);
-  document.getElementById('stat-median').textContent = medianVal.toFixed(1);
-  document.getElementById('stat-p50').textContent    = p50.toFixed(1);
-  document.getElementById('stat-p85').textContent    = p85.toFixed(1);
-  document.getElementById('stat-p95').textContent    = p95.toFixed(1);
+  document.getElementById('stat-mean').textContent   = allDays.length ? meanVal.toFixed(1) : '—';
+  document.getElementById('stat-median').textContent = allDays.length ? medianVal.toFixed(1) : '—';
+  document.getElementById('stat-p50').textContent    = allDays.length ? p50.toFixed(1) : '—';
+  document.getElementById('stat-p85').textContent    = allDays.length ? p85.toFixed(1) : '—';
+  document.getElementById('stat-p95').textContent    = allDays.length ? p95.toFixed(1) : '—';
 
   return { meanVal, p50, p85, p95 };
 }
@@ -536,9 +746,10 @@ function updateOverallStats() {
 // =========================================================
 // PER-SIZE STATS  (side legend)
 // =========================================================
-function updateSizeLegend() {
+function updateSizeLegend(data) {
+  const src = data || rawData;
   ['S', 'M', 'L'].forEach(sz => {
-    const days = rawData.filter(d => d.size === sz).map(d => d.days);
+    const days = src.filter(d => d.size === sz).map(d => d.days);
     const key = sz.toLowerCase();
     document.getElementById(`sl-${key}-count`).textContent = `n=${days.length}`;
     if (days.length === 0) {
@@ -559,10 +770,12 @@ function updateSizeLegend() {
 // =========================================================
 const BUCKET = 50;
 
-function buildBuckets() {
-  const allDays = rawData.map(d => d.days);
+function buildBuckets(data) {
+  const src = data || rawData;
+  if (!src.length) return { labels: [], sData: [], mData: [], lData: [], numBuckets: 1 };
+  const allDays = src.map(d => d.days);
   const maxDay  = Math.max(...allDays);
-  const numBuckets = Math.ceil(maxDay / BUCKET);
+  const numBuckets = Math.max(1, Math.ceil(maxDay / BUCKET));
 
   const labels = [];
   const sData = [], mData = [], lData = [];
@@ -571,7 +784,7 @@ function buildBuckets() {
     const lo = i * BUCKET, hi = (i + 1) * BUCKET;
     labels.push(`${lo + 1}–${hi}`);
     let s = 0, m = 0, l = 0;
-    rawData.forEach(d => {
+    src.forEach(d => {
       if (d.days > lo && d.days <= hi) {
         if (d.size === 'S') s++;
         else if (d.size === 'M') m++;
@@ -633,8 +846,9 @@ Chart.register(annotationsPlugin);
 let histChart = null;
 
 function initChart() {
-  const { labels, sData, mData, lData, numBuckets } = buildBuckets();
-  const overallStats = updateOverallStats();
+  const filtered = getFilteredData();
+  const { labels, sData, mData, lData, numBuckets } = buildBuckets(filtered);
+  const overallStats = updateOverallStats(filtered);
 
   const canvasCtx = document.getElementById('histogramChart').getContext('2d');
   histChart = new Chart(canvasCtx, {
@@ -708,9 +922,8 @@ function initChart() {
   histChart._overallStats = overallStats;
 }
 
-function refreshChart() {
-  const { labels, sData, mData, lData, numBuckets } = buildBuckets();
-  const overallStats = updateOverallStats();
+function refreshChart(data, overallStats) {
+  const { labels, sData, mData, lData, numBuckets } = buildBuckets(data);
 
   histChart.data.labels = labels;
   histChart.data.datasets[0].data = sData;
@@ -740,8 +953,7 @@ function addEntry() {
   const size = sizeInput.value;
 
   rawData.push({ size, days });
-  refreshChart();
-  updateSizeLegend();
+  applyFilters();
 
   daysInput.value = '';
   feedback.style.color = '#4fc3f7';
@@ -756,11 +968,16 @@ document.getElementById('input-days').addEventListener('keydown', e => {
   if (e.key === 'Enter') addEntry();
 });
 
+// Filter inputs
+document.getElementById('filter-min').addEventListener('change', applyFilters);
+document.getElementById('filter-max').addEventListener('change', applyFilters);
+
 // =========================================================
 // INITIALISE
 // =========================================================
+initFilterBounds();
 initChart();
-updateSizeLegend();
+applyFilters();
 
 // =========================================================
 // MAZUREK DĄBROWSKIEGO  –  Web Audio API
