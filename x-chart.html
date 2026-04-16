@@ -47,8 +47,8 @@
     }
     .stat-card:hover { transform: translateY(-3px); }
     .stat-value { font-size: 2em; font-weight: 700; line-height: 1.1; }
-    .stat-value.blue { color: #4fc3f7; }
-    .stat-value.red  { color: #ef5350; }
+    .stat-value.blue  { color: #4fc3f7; }
+    .stat-value.red   { color: #ef5350; }
     .stat-value.green { color: #a8e063; }
     .stat-label { font-size: 0.76em; color: #90a0b7; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
 
@@ -67,7 +67,6 @@
       border-radius: 16px;
       padding: 24px;
       backdrop-filter: blur(8px);
-      position: relative;
     }
 
     .chart-hint {
@@ -126,6 +125,19 @@
       flex-shrink: 0;
       border-top: 2px dashed;
     }
+    .legend-pulse {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #ffd700;
+      box-shadow: 0 0 0 4px rgba(255,215,0,0.3);
+      animation: legendPulse 1.6s ease-out infinite;
+    }
+    @keyframes legendPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,215,0,0.6); }
+      70%  { box-shadow: 0 0 0 8px rgba(255,215,0,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+    }
 
     /* add point form */
     .form-group { margin-bottom: 12px; }
@@ -138,8 +150,7 @@
       margin-bottom: 6px;
     }
     .form-group input[type="date"],
-    .form-group input[type="number"],
-    .form-group input[type="text"] {
+    .form-group input[type="number"] {
       width: 100%;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.2);
@@ -169,6 +180,21 @@
     .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
     .btn-primary:active { transform: translateY(0); }
 
+    .btn-undo {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      color: #90a0b7;
+      font-size: 0.84em;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 6px;
+    }
+    .btn-undo:hover { background: rgba(255,255,255,0.13); }
+    .btn-undo:disabled { opacity: 0.35; cursor: default; }
+
     /* points list */
     .points-list {
       max-height: 300px;
@@ -186,20 +212,15 @@
       gap: 8px;
     }
     .point-row:last-child { border-bottom: none; }
-    .point-idx {
-      color: #90a0b7;
-      font-size: 0.78em;
-      min-width: 20px;
-    }
+    .point-idx  { color: #90a0b7; font-size: 0.78em; min-width: 20px; }
     .point-date { color: #90a0b7; font-size: 0.82em; flex: 1; }
-    .point-days {
-      font-weight: 700;
-      min-width: 36px;
-      text-align: right;
-    }
-    .point-days.over-unpl { color: #ef5350; }
+    .point-days { font-weight: 700; min-width: 36px; text-align: right; }
+    .point-days.over-unpl  { color: #ef5350; }
     .point-days.under-lnpl { color: #ffa726; }
-    .point-days.normal { color: #a8e063; }
+    .point-days.normal     { color: #a8e063; }
+    .point-days.is-min     { color: #ffd700; }
+    .point-days.is-max     { color: #ffd700; }
+
     .btn-del {
       background: rgba(239,83,80,0.15);
       border: 1px solid rgba(239,83,80,0.35);
@@ -216,22 +237,6 @@
 
     .msg { font-size: 0.82em; color: #4fc3f7; margin-top: 8px; min-height: 1.2em; text-align: center; }
     .msg.error { color: #ef5350; }
-
-    /* undo */
-    .btn-undo {
-      width: 100%;
-      padding: 8px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 10px;
-      color: #90a0b7;
-      font-size: 0.84em;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 6px;
-    }
-    .btn-undo:hover { background: rgba(255,255,255,0.13); }
-    .btn-undo:disabled { opacity: 0.35; cursor: default; }
 
     /* responsive */
     @media (max-width: 900px) {
@@ -304,6 +309,10 @@
           <div class="legend-dot" style="background:#ef5350"></div>
           <span>Punkt poza granicami</span>
         </div>
+        <div class="legend-item">
+          <div class="legend-pulse"></div>
+          <span>Wartość min / max</span>
+        </div>
       </div>
 
       <!-- Add point -->
@@ -373,11 +382,11 @@
     { date: '2025-12-10', days: 44 },
   ];
 
-  let deletedStack = []; // for undo
+  let deletedStack = [];
 
   /* ── X-chart statistics ── */
   function calcStats(arr) {
-    if (arr.length === 0) return { mean: 0, mrAvg: 0, unpl: 0, lnpl: 0 };
+    if (arr.length === 0) return { mean: 0, mrAvg: 0, unpl: 0, lnpl: 0, minIdx: -1, maxIdx: -1 };
     const n = arr.length;
     const mean = arr.reduce((s, d) => s + d.days, 0) / n;
     const mrs = [];
@@ -385,7 +394,73 @@
     const mrAvg = mrs.length ? mrs.reduce((s, v) => s + v, 0) / mrs.length : 0;
     const unpl = mean + 2.66 * mrAvg;
     const lnpl = Math.max(0, mean - 2.66 * mrAvg);
-    return { mean, mrAvg, unpl, lnpl };
+
+    let minVal = Infinity, maxVal = -Infinity, minIdx = 0, maxIdx = 0;
+    arr.forEach((d, i) => {
+      if (d.days < minVal) { minVal = d.days; minIdx = i; }
+      if (d.days > maxVal) { maxVal = d.days; maxIdx = i; }
+    });
+
+    return { mean, mrAvg, unpl, lnpl, minIdx, maxIdx };
+  }
+
+  /* ── Pulse animation plugin ── */
+  let pulsePhase = 0;
+  let rafId = null;
+
+  const pulsePlugin = {
+    id: 'pulsePlugin',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data) return;
+
+      const stats = chart._pulseStats;
+      if (!stats) return;
+
+      const indices = new Set();
+      if (stats.minIdx >= 0) indices.add(stats.minIdx);
+      if (stats.maxIdx >= 0 && stats.maxIdx !== stats.minIdx) indices.add(stats.maxIdx);
+
+      const phase = pulsePhase; // 0..1
+      const maxRing = 22;
+
+      indices.forEach(i => {
+        const el = meta.data[i];
+        if (!el) return;
+        const { x, y } = el.getProps(['x', 'y'], true);
+
+        // draw 2 staggered rings
+        for (let ring = 0; ring < 2; ring++) {
+          const t = (phase + ring * 0.5) % 1;
+          const radius = 6 + t * maxRing;
+          const alpha = (1 - t) * 0.75;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+  };
+
+  Chart.register(pulsePlugin);
+
+  /* ── Animate loop ── */
+  function startPulse() {
+    if (rafId) cancelAnimationFrame(rafId);
+    let last = null;
+    function tick(ts) {
+      if (last !== null) pulsePhase = (pulsePhase + (ts - last) / 1400) % 1;
+      last = ts;
+      if (myChart) myChart.draw();
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
   }
 
   /* ── Chart.js instance ── */
@@ -395,16 +470,20 @@
     const stats = calcStats(data);
     const labels = data.map(d => d.date);
     const values = data.map(d => d.days);
-    const pointColors = values.map(v =>
-      v > stats.unpl || v < stats.lnpl ? '#ef5350' : '#4fc3f7'
-    );
-    const pointRadius = values.map(v =>
-      v > stats.unpl || v < stats.lnpl ? 8 : 5
-    );
+
+    const pointColors = values.map((v, i) => {
+      if (i === stats.minIdx || i === stats.maxIdx) return '#ffd700';
+      if (v > stats.unpl || v < stats.lnpl) return '#ef5350';
+      return '#4fc3f7';
+    });
+    const pointRadius = values.map((v, i) => {
+      if (i === stats.minIdx || i === stats.maxIdx) return 8;
+      if (v > stats.unpl || v < stats.lnpl) return 7;
+      return 5;
+    });
 
     const ctx = document.getElementById('xChart').getContext('2d');
-
-    if (myChart) myChart.destroy();
+    if (myChart) { myChart.destroy(); }
 
     myChart = new Chart(ctx, {
       type: 'line',
@@ -413,7 +492,7 @@
         datasets: [{
           label: 'Czas realizacji (dni)',
           data: values,
-          borderColor: 'rgba(79,195,247,0.7)',
+          borderColor: 'rgba(79,195,247,0.65)',
           borderWidth: 2,
           pointBackgroundColor: pointColors,
           pointBorderColor: pointColors,
@@ -425,20 +504,26 @@
       },
       options: {
         responsive: true,
+        animation: false,
         interaction: { mode: 'nearest', axis: 'x', intersect: true },
         onClick(evt) {
           const points = myChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
-          if (points.length > 0) {
-            const idx = points[0].index;
-            removePoint(idx);
-          }
+          if (points.length > 0) removePoint(points[0].index);
         },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
               title: items => items[0].label,
-              label: item => ` ${item.raw} dni`,
+              label: item => {
+                const i = item.dataIndex;
+                const flags = [];
+                if (i === stats.minIdx) flags.push('MIN ⬇️');
+                if (i === stats.maxIdx) flags.push('MAX ⬆️');
+                if (item.raw > stats.unpl) flags.push('powyżej UNPL ⚠️');
+                else if (item.raw < stats.lnpl && stats.lnpl > 0) flags.push('poniżej LNPL');
+                return ` ${item.raw} dni${flags.length ? '  ' + flags.join(' · ') : ''}`;
+              },
             },
             backgroundColor: 'rgba(15,20,60,0.92)',
             titleColor: '#90a0b7',
@@ -446,18 +531,11 @@
             borderColor: 'rgba(255,255,255,0.1)',
             borderWidth: 1,
           },
-          annotation: {
-            annotations: buildAnnotations(stats),
-          },
+          annotation: { annotations: buildAnnotations(stats) },
         },
         scales: {
           x: {
-            ticks: {
-              color: '#90a0b7',
-              maxRotation: 45,
-              font: { size: 11 },
-              maxTicksLimit: 18,
-            },
+            ticks: { color: '#90a0b7', maxRotation: 45, font: { size: 11 }, maxTicksLimit: 18 },
             grid: { color: 'rgba(255,255,255,0.06)' },
           },
           y: {
@@ -470,8 +548,10 @@
       }
     });
 
+    myChart._pulseStats = stats;
     updateStatCards(stats);
     updatePointsList(stats);
+    startPulse();
   }
 
   function buildAnnotations(stats) {
@@ -479,8 +559,7 @@
     const annotations = {
       meanLine: {
         type: 'line',
-        yMin: stats.mean,
-        yMax: stats.mean,
+        yMin: stats.mean, yMax: stats.mean,
         borderColor: '#ef5350',
         borderWidth: 2,
         label: {
@@ -496,8 +575,7 @@
       },
       unplLine: {
         type: 'line',
-        yMin: stats.unpl,
-        yMax: stats.unpl,
+        yMin: stats.unpl, yMax: stats.unpl,
         borderColor: '#4fc3f7',
         borderWidth: 2,
         borderDash: [6, 4],
@@ -517,8 +595,7 @@
     if (stats.lnpl > 0) {
       annotations.lnplLine = {
         type: 'line',
-        yMin: stats.lnpl,
-        yMax: stats.lnpl,
+        yMin: stats.lnpl, yMax: stats.lnpl,
         borderColor: '#4fc3f7',
         borderWidth: 2,
         borderDash: [6, 4],
@@ -540,13 +617,13 @@
 
   function updateStatCards(stats) {
     const fmt = v => v.toFixed(1);
-    const outside = data.filter(d => d.days > stats.unpl || d.days < stats.lnpl).length;
+    const outside = data.filter(d => d.days > stats.unpl || (stats.lnpl > 0 && d.days < stats.lnpl)).length;
     document.getElementById('statCount').textContent = data.length;
-    document.getElementById('statMean').textContent = fmt(stats.mean);
-    document.getElementById('statUNPL').textContent = fmt(stats.unpl);
-    document.getElementById('statLNPL').textContent = stats.lnpl > 0 ? fmt(stats.lnpl) : '0';
-    document.getElementById('statMR').textContent = fmt(stats.mrAvg);
-    document.getElementById('statOutside').textContent = outside;
+    document.getElementById('statMean').textContent = data.length ? fmt(stats.mean) : '–';
+    document.getElementById('statUNPL').textContent = data.length ? fmt(stats.unpl) : '–';
+    document.getElementById('statLNPL').textContent = data.length ? (stats.lnpl > 0 ? fmt(stats.lnpl) : '0') : '–';
+    document.getElementById('statMR').textContent = data.length ? fmt(stats.mrAvg) : '–';
+    document.getElementById('statOutside').textContent = data.length ? outside : '–';
   }
 
   function updatePointsList(stats) {
@@ -556,12 +633,15 @@
       return;
     }
     list.innerHTML = data.map((d, i) => {
-      const cls = d.days > stats.unpl ? 'over-unpl' : d.days < stats.lnpl ? 'under-lnpl' : 'normal';
-      const flag = d.days > stats.unpl ? ' ⚠️' : d.days < stats.lnpl ? ' ⬇️' : '';
+      let cls = 'normal', badge = '';
+      if (i === stats.maxIdx)       { cls = 'is-max';      badge = ' 🔺'; }
+      else if (i === stats.minIdx)  { cls = 'is-min';      badge = ' 🔻'; }
+      else if (d.days > stats.unpl) { cls = 'over-unpl';   badge = ' ⚠️'; }
+      else if (stats.lnpl > 0 && d.days < stats.lnpl) { cls = 'under-lnpl'; badge = ' ⬇️'; }
       return `<div class="point-row">
         <span class="point-idx">${i + 1}</span>
         <span class="point-date">${d.date}</span>
-        <span class="point-days ${cls}">${d.days}${flag}</span>
+        <span class="point-days ${cls}">${d.days}${badge}</span>
         <button class="btn-del" onclick="removePoint(${i})" title="Usuń punkt">✕</button>
       </div>`;
     }).join('');
@@ -573,29 +653,27 @@
     data.splice(idx, 1);
     document.getElementById('btnUndo').disabled = false;
     buildChart();
-    showMsg('addMsg', `Usunięto punkt #${idx + 1}`, false);
+    showMsg(`Usunięto punkt #${idx + 1}`, false);
   }
 
-  /* ── Undo last delete ── */
+  /* ── Undo ── */
   function undoDelete() {
     if (!deletedStack.length) return;
     const { idx, point } = deletedStack.pop();
     data.splice(idx, 0, point);
     document.getElementById('btnUndo').disabled = deletedStack.length === 0;
     buildChart();
-    showMsg('addMsg', `Przywrócono punkt #${idx + 1}`, false);
+    showMsg(`Przywrócono punkt #${idx + 1}`, false);
   }
 
   /* ── Add a new point ── */
   function addPoint() {
     const dateVal = document.getElementById('newDate').value;
     const daysVal = parseInt(document.getElementById('newDays').value, 10);
-    const msg = document.getElementById('addMsg');
 
-    if (!dateVal) { showMsg('addMsg', 'Podaj datę.', true); return; }
-    if (isNaN(daysVal) || daysVal < 1) { showMsg('addMsg', 'Podaj prawidłową liczbę dni (≥ 1).', true); return; }
+    if (!dateVal)                        { showMsg('Podaj datę.', true); return; }
+    if (isNaN(daysVal) || daysVal < 1)  { showMsg('Podaj prawidłową liczbę dni (≥ 1).', true); return; }
 
-    // insert in sorted order by date
     const newPoint = { date: dateVal, days: daysVal };
     const insertIdx = data.findIndex(d => d.date > dateVal);
     if (insertIdx === -1) data.push(newPoint);
@@ -604,11 +682,11 @@
     document.getElementById('newDate').value = '';
     document.getElementById('newDays').value = '';
     buildChart();
-    showMsg('addMsg', `Dodano: ${dateVal} – ${daysVal} dni`, false);
+    showMsg(`Dodano: ${dateVal} – ${daysVal} dni`, false);
   }
 
-  function showMsg(id, text, isError) {
-    const el = document.getElementById(id);
+  function showMsg(text, isError) {
+    const el = document.getElementById('addMsg');
     el.textContent = text;
     el.className = 'msg' + (isError ? ' error' : '');
     clearTimeout(el._t);
