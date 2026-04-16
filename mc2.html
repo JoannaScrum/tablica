@@ -638,20 +638,28 @@
 // ═══════════════════════════════════════════════════════════════
 //  POLISH HOLIDAYS
 // ═══════════════════════════════════════════════════════════════
+// Anonymous Gregorian algorithm (Computus) for Easter Sunday date calculation.
 function calcEaster(y) {
-  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const mo = Math.floor((h + l - 7 * m + 114) / 31);
-  const da = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(y, mo - 1, da);
+  const goldenNumber  = y % 19;
+  const century       = Math.floor(y / 100);
+  const yearInCentury = y % 100;
+  const centuryDiv4   = Math.floor(century / 4);
+  const centuryMod4   = century % 4;
+  const correction    = Math.floor((century + 8) / 25);
+  const lunarCorr     = Math.floor((century - correction + 1) / 3);
+  const epact         = (19 * goldenNumber + century - centuryDiv4 - lunarCorr + 15) % 30;
+  const yearDiv4      = Math.floor(yearInCentury / 4);
+  const yearMod4      = yearInCentury % 4;
+  const weekday       = (32 + 2 * centuryMod4 + 2 * yearDiv4 - epact - yearMod4) % 7;
+  const adj           = Math.floor((goldenNumber + 11 * epact + 22 * weekday) / 451);
+  const month         = Math.floor((epact + weekday - 7 * adj + 114) / 31);
+  const day           = ((epact + weekday - 7 * adj + 114) % 31) + 1;
+  return new Date(y, month - 1, day);
 }
 
-const _hCache = {};
+const holidayCache = {};
 function holidaySet(y) {
-  if (_hCache[y]) return _hCache[y];
+  if (holidayCache[y]) return holidayCache[y];
   const e = calcEaster(y).getTime(), D = 864e5;
   const s = new Set([
     +new Date(y, 0, 1),   // Nowy Rok
@@ -668,7 +676,7 @@ function holidaySet(y) {
     +new Date(y, 11, 25), // Boże Narodzenie
     +new Date(y, 11, 26), // Drugi dzień Bożego Narodzenia
   ]);
-  _hCache[y] = s;
+  holidayCache[y] = s;
   return s;
 }
 
@@ -893,13 +901,16 @@ renderThroughputTags();
 // ═══════════════════════════════════════════════════════════════
 let sprintCapacities = [];
 
+// Maximum number of sprints to generate in the capacity table (safety guard).
+const MAX_SPRINTS_TO_GENERATE = 500;
+
 function buildSprintList() {
   if (!startDate || !endDate || endDate <= startDate) return [];
   const dur = parseInt(document.getElementById('sprintDuration').value);
   const list = [];
   let cur = new Date(startDate);
   let n = 1;
-  while (cur < endDate && n <= 500) {
+  while (cur < endDate && n <= MAX_SPRINTS_TO_GENERATE) {
     const end = new Date(cur);
     end.setDate(end.getDate() + dur - 1);
     if (end > endDate) end.setTime(endDate.getTime());
@@ -950,6 +961,8 @@ function onCapChange(idx, val) {
 //  SIMULATION
 // ═══════════════════════════════════════════════════════════════
 const NUM_SIM    = 10000;
+// MAX_SPRINT caps simulation iterations per run (separate from MAX_SPRINTS_TO_GENERATE
+// which only limits the capacity table display).
 const MAX_SPRINT = 2000;
 
 let chartInstance = null;
@@ -987,6 +1000,11 @@ function percentile(arr, p) {
   return sorted[Math.min(idx, sorted.length - 1)];
 }
 
+function sampleStoryCount(epic) {
+  if (epic.min === epic.max) return epic.min;
+  return epic.min + Math.floor(Math.random() * (epic.max - epic.min + 1));
+}
+
 function runSimulation() {
   const epics = getEpicsData();
   if (epics.length === 0)          { alert('Dodaj przynajmniej jeden epik z estymacją!'); return; }
@@ -1003,9 +1021,7 @@ function runSimulation() {
 
   for (let sim = 0; sim < NUM_SIM; sim++) {
     // Sample story count for each epic
-    const stories = epics.map(e =>
-      e.min === e.max ? e.min : e.min + Math.floor(Math.random() * (e.max - e.min + 1))
-    );
+    const stories = epics.map(sampleStoryCount);
 
     // Build cumulative milestones
     let cum = 0;
