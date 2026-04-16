@@ -27,6 +27,14 @@
       text-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
 
+    h2 {
+      font-size: 1.2em;
+      font-weight: 700;
+      color: #e8ecf5;
+      margin-bottom: 18px;
+      letter-spacing: 0.4px;
+    }
+
     .container { max-width: 1500px; margin: 0 auto; }
 
     /* stat cards */
@@ -67,6 +75,24 @@
       border-radius: 16px;
       padding: 24px;
       backdrop-filter: blur(8px);
+    }
+
+    /* MR chart section */
+    .mr-section {
+      margin-top: 28px;
+    }
+
+    .mr-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .mr-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
     }
 
     .chart-hint {
@@ -114,6 +140,11 @@
       border-radius: 50%;
       flex-shrink: 0;
       border: 2px solid rgba(255,255,255,0.3);
+    }
+    .legend-bar {
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
     }
     .legend-line {
       width: 28px; height: 3px;
@@ -240,7 +271,7 @@
 
     /* responsive */
     @media (max-width: 900px) {
-      .main-row { flex-direction: column; }
+      .main-row, .mr-row { flex-direction: column; }
       .sidebar { width: 100%; }
     }
   </style>
@@ -249,7 +280,7 @@
 <div class="container">
   <h1>📈 X-Chart Czasów Realizacji (PCB)</h1>
 
-  <!-- Stat cards -->
+  <!-- X-chart stat cards -->
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-value blue" id="statCount">–</div>
@@ -277,7 +308,7 @@
     </div>
   </div>
 
-  <!-- Main row -->
+  <!-- Main row: X-chart + sidebar -->
   <div class="main-row">
     <div class="chart-card">
       <canvas id="xChart"></canvas>
@@ -286,7 +317,7 @@
 
     <div class="sidebar">
 
-      <!-- Legend -->
+      <!-- Legend X-chart -->
       <div class="panel">
         <h3>Legenda</h3>
         <div class="legend-item">
@@ -333,12 +364,68 @@
 
       <!-- Points list -->
       <div class="panel">
-        <h3>📋 Lista punktów</h3>
+        <h3>�� Lista punktów</h3>
         <div class="points-list" id="pointsList"></div>
       </div>
 
     </div>
   </div>
+
+  <!-- MR chart section -->
+  <div class="mr-section">
+    <h2>📉 Moving Range (MR) – Zmienność kolejnych realizacji</h2>
+
+    <!-- MR stat cards -->
+    <div class="mr-stats-grid">
+      <div class="stat-card">
+        <div class="stat-value green" id="mrStatAvg">–</div>
+        <div class="stat-label">Średni ruch MR̄</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value red" id="mrStatURL">–</div>
+        <div class="stat-label">URL (górna granica MR)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value blue" id="mrStatCount">–</div>
+        <div class="stat-label">Liczba MR</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value red" id="mrStatOutside">–</div>
+        <div class="stat-label">Poza URL</div>
+      </div>
+    </div>
+
+    <!-- MR chart row -->
+    <div class="mr-row">
+      <div class="chart-card">
+        <canvas id="mrChart"></canvas>
+        <p class="chart-hint">Wartości ruchomego zakresu |X<sub>i</sub> − X<sub>i−1</sub>| pomiędzy kolejnymi punktami</p>
+      </div>
+
+      <div class="sidebar">
+        <div class="panel">
+          <h3>Legenda MR</h3>
+          <div class="legend-item">
+            <div class="legend-bar" style="background:rgba(168,224,99,0.7)"></div>
+            <span>Moving Range (MR)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line" style="background:#a8e063"></div>
+            <span>Średni MR̄</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dashed" style="border-color:#ef5350"></div>
+            <span>URL – górna granica (3.267 × MR̄)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-bar" style="background:rgba(239,83,80,0.7)"></div>
+            <span>MR powyżej URL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -380,7 +467,7 @@
 
   /* ── X-chart statistics ── */
   function calcStats(arr) {
-    if (arr.length === 0) return { mean: 0, mrAvg: 0, unpl: 0, lnpl: 0, minIdx: -1, maxIdx: -1 };
+    if (arr.length === 0) return { mean: 0, mrAvg: 0, unpl: 0, lnpl: 0, minIdx: -1, maxIdx: -1, mrs: [], url: 0 };
     const n = arr.length;
     const mean = arr.reduce((s, d) => s + d.days, 0) / n;
     const mrs = [];
@@ -388,6 +475,7 @@
     const mrAvg = mrs.length ? mrs.reduce((s, v) => s + v, 0) / mrs.length : 0;
     const unpl = mean + 2.66 * mrAvg;
     const lnpl = Math.max(0, mean - 2.66 * mrAvg);
+    const url = 3.267 * mrAvg;
 
     let minVal = Infinity, maxVal = -Infinity, minIdx = 0, maxIdx = 0;
     arr.forEach((d, i) => {
@@ -395,7 +483,7 @@
       if (d.days > maxVal) { maxVal = d.days; maxIdx = i; }
     });
 
-    return { mean, mrAvg, unpl, lnpl, minIdx, maxIdx };
+    return { mean, mrAvg, unpl, lnpl, minIdx, maxIdx, mrs, url };
   }
 
   /* ── Pulse animation plugin ── */
@@ -456,11 +544,22 @@
     rafId = requestAnimationFrame(tick);
   }
 
-  /* ── Chart.js instance ── */
+  /* ── Chart.js instances ── */
   let myChart = null;
+  let mrChartInst = null;
 
   function buildChart() {
     const stats = calcStats(data);
+    buildXChart(stats);
+    buildMRChart(stats);
+    updateStatCards(stats);
+    updateMRStatCards(stats);
+    updatePointsList(stats);
+    startPulse();
+  }
+
+  /* ── X-Chart ── */
+  function buildXChart(stats) {
     const labels = data.map(d => d.date);
     const values = data.map(d => d.days);
 
@@ -524,7 +623,7 @@
             borderColor: 'rgba(255,255,255,0.1)',
             borderWidth: 1,
           },
-          annotation: { annotations: buildAnnotations(stats) },
+          annotation: { annotations: buildXAnnotations(stats) },
         },
         scales: {
           x: {
@@ -542,12 +641,9 @@
     });
 
     myChart._pulseStats = stats;
-    updateStatCards(stats);
-    updatePointsList(stats);
-    startPulse();
   }
 
-  function buildAnnotations(stats) {
+  function buildXAnnotations(stats) {
     const fmt = v => v.toFixed(1);
     const annotations = {
       meanLine: {
@@ -608,6 +704,109 @@
     return annotations;
   }
 
+  /* ── MR Chart ── */
+  function buildMRChart(stats) {
+    const { mrs, mrAvg, url } = stats;
+    if (mrs.length === 0) return;
+
+    // labels: "2 → 3", "3 → 4", ... (pairs of data points)
+    const labels = mrs.map((_, i) => `${data[i].date} → ${data[i + 1].date}`);
+    const barColors = mrs.map(v => v > url ? 'rgba(239,83,80,0.75)' : 'rgba(168,224,99,0.7)');
+    const barBorders = mrs.map(v => v > url ? '#ef5350' : '#a8e063');
+
+    const ctx = document.getElementById('mrChart').getContext('2d');
+    if (mrChartInst) { mrChartInst.destroy(); }
+
+    const fmt = v => v.toFixed(1);
+
+    mrChartInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Moving Range (MR)',
+          data: mrs,
+          backgroundColor: barColors,
+          borderColor: barBorders,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => items[0].label,
+              label: item => {
+                const v = item.raw;
+                const flag = v > url ? '  powyżej URL ⚠️' : '';
+                return ` MR = ${v} dni${flag}`;
+              },
+            },
+            backgroundColor: 'rgba(15,20,60,0.92)',
+            titleColor: '#90a0b7',
+            bodyColor: '#e8ecf5',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+          },
+          annotation: {
+            annotations: {
+              mrAvgLine: {
+                type: 'line',
+                yMin: mrAvg, yMax: mrAvg,
+                borderColor: '#a8e063',
+                borderWidth: 2,
+                label: {
+                  display: true,
+                  content: `MR̄ = ${fmt(mrAvg)}`,
+                  position: 'start',
+                  backgroundColor: 'rgba(168,224,99,0.15)',
+                  color: '#a8e063',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              },
+              urlLine: {
+                type: 'line',
+                yMin: url, yMax: url,
+                borderColor: '#ef5350',
+                borderWidth: 2,
+                borderDash: [6, 4],
+                label: {
+                  display: true,
+                  content: `URL = ${fmt(url)}`,
+                  position: 'end',
+                  backgroundColor: 'rgba(239,83,80,0.15)',
+                  color: '#ef5350',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#90a0b7', maxRotation: 45, font: { size: 10 }, maxTicksLimit: 18 },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#90a0b7', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            title: { display: true, text: 'Moving Range (dni)', color: '#90a0b7', font: { size: 12 } },
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Stat cards ── */
   function updateStatCards(stats) {
     const fmt = v => v.toFixed(1);
     const outside = data.filter(d => d.days > stats.unpl || (stats.lnpl > 0 && d.days < stats.lnpl)).length;
@@ -617,6 +816,15 @@
     document.getElementById('statLNPL').textContent = data.length ? (stats.lnpl > 0 ? fmt(stats.lnpl) : '0') : '–';
     document.getElementById('statMR').textContent = data.length ? fmt(stats.mrAvg) : '–';
     document.getElementById('statOutside').textContent = data.length ? outside : '–';
+  }
+
+  function updateMRStatCards(stats) {
+    const fmt = v => v.toFixed(1);
+    const outsideMR = stats.mrs.filter(v => v > stats.url).length;
+    document.getElementById('mrStatAvg').textContent = stats.mrs.length ? fmt(stats.mrAvg) : '–';
+    document.getElementById('mrStatURL').textContent = stats.mrs.length ? fmt(stats.url) : '–';
+    document.getElementById('mrStatCount').textContent = stats.mrs.length;
+    document.getElementById('mrStatOutside').textContent = stats.mrs.length ? outsideMR : '–';
   }
 
   function updatePointsList(stats) {
