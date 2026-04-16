@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XMR – Tempo Dostarczania</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+      color: #e8ecf5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .container { max-width: 1500px; margin: 0 auto; }
+
+    /* stat cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 12px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-value { font-size: 2em; font-weight: 700; line-height: 1.1; }
+    .stat-value.red   { color: #ef5350; }
+    .stat-value.blue  { color: #4fc3f7; }
+    .stat-value.green { color: #a8e063; }
+    .stat-label { font-size: 0.76em; color: #90a0b7; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+    /* layout */
+    .main-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .charts-col {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .chart-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .chart-title {
+      font-size: 1em;
+      font-weight: 600;
+      color: #e8ecf5;
+      margin-bottom: 14px;
+      letter-spacing: 0.3px;
+    }
+
+    /* sidebar */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h3 {
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #90a0b7;
+      margin-bottom: 14px;
+    }
+
+    /* legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.92em;
+    }
+    .legend-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .legend-line {
+      width: 28px; height: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+    .legend-dashed {
+      width: 28px; height: 0;
+      flex-shrink: 0;
+      border-top: 2px dashed;
+    }
+
+    /* weekly table */
+    .weeks-list {
+      max-height: 360px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.2) transparent;
+    }
+    .week-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      font-size: 0.84em;
+      gap: 6px;
+    }
+    .week-row:last-child { border-bottom: none; }
+    .week-lbl { color: #90a0b7; flex: 1; }
+    .week-val { font-weight: 700; min-width: 28px; text-align: right; }
+    .week-val.above { color: #ef5350; }
+    .week-val.below { color: #ffa726; }
+    .week-val.normal { color: #a8e063; }
+    .week-mr { color: #4fc3f7; min-width: 28px; text-align: right; font-size: 0.9em; }
+
+    /* responsive */
+    @media (max-width: 900px) {
+      .main-row { flex-direction: column; }
+      .sidebar { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📈 XMR – Tygodniowe Tempo Dostarczania</h1>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value green" id="statWeeks">–</div>
+      <div class="stat-label">Liczba tygodni</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value red" id="statMedianX">–</div>
+      <div class="stat-label">Mediana przepustowości</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value red" id="statUCL">–</div>
+      <div class="stat-label">UCL (X-chart)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value red" id="statLCL">–</div>
+      <div class="stat-label">LCL (X-chart)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="statMedianMR">–</div>
+      <div class="stat-label">Mediana MR</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="statUCLMR">–</div>
+      <div class="stat-label">UCL (MR-chart)</div>
+    </div>
+  </div>
+
+  <!-- Main row -->
+  <div class="main-row">
+    <div class="charts-col">
+      <!-- X chart -->
+      <div class="chart-card">
+        <div class="chart-title">📊 X-Chart – Tygodniowa Przepustowość</div>
+        <canvas id="xChart"></canvas>
+      </div>
+      <!-- MR chart -->
+      <div class="chart-card">
+        <div class="chart-title">📉 MR-Chart – Ruchomy Zakres (Moving Range)</div>
+        <canvas id="mrChart"></canvas>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <!-- Legend -->
+      <div class="panel">
+        <h3>Legenda – X-Chart</h3>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#4fc3f7"></div>
+          <span>Tygodniowa przepustowość</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:#ef5350"></div>
+          <span>Mediana przepustowości</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dashed" style="border-color:#ef5350"></div>
+          <span>UCL / LCL (X-chart)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ef5350"></div>
+          <span>Punkt poza granicami</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Legenda – MR-Chart</h3>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ce93d8"></div>
+          <span>Ruchomy zakres (MR)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:#4fc3f7"></div>
+          <span>Mediana MR</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dashed" style="border-color:#4fc3f7"></div>
+          <span>UCL (MR-chart)</span>
+        </div>
+      </div>
+
+      <!-- Weekly values table -->
+      <div class="panel">
+        <h3>📋 Dane tygodniowe</h3>
+        <div style="display:flex;justify-content:space-between;font-size:0.75em;color:#90a0b7;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:6px;">
+          <span>Tydzień</span><span>X</span><span>MR</span>
+        </div>
+        <div class="weeks-list" id="weeksList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Raw CSV data embedded ── */
+  const CSV = `07.01.2025;0
+08.01.2025;2
+09.01.2025;10
+10.01.2025;3
+11.01.2025;0
+12.01.2025;0
+13.01.2025;2
+14.01.2025;3
+15.01.2025;7
+16.01.2025;0
+17.01.2025;0
+18.01.2025;0
+19.01.2025;0
+20.01.2025;5
+21.01.2025;2
+22.01.2025;0
+23.01.2025;0
+24.01.2025;0
+25.01.2025;0
+26.01.2025;0
+27.01.2025;1
+28.01.2025;1
+29.01.2025;0
+30.01.2025;5
+31.01.2025;4
+01.02.2025;0
+02.02.2025;0
+03.02.2025;7
+04.02.2025;0
+05.02.2025;2
+06.02.2025;2
+07.02.2025;12
+08.02.2025;0
+09.02.2025;0
+10.02.2025;1
+11.02.2025;0
+12.02.2025;0
+13.02.2025;2
+14.02.2025;12
+15.02.2025;0
+16.02.2025;0
+17.02.2025;1
+18.02.2025;0
+19.02.2025;0
+20.02.2025;3
+21.02.2025;11
+22.02.2025;0
+23.02.2025;0
+24.02.2025;6
+25.02.2025;0
+26.02.2025;0
+27.02.2025;6
+28.02.2025;7
+01.03.2025;0
+02.03.2025;0
+03.03.2025;2
+04.03.2025;0
+05.03.2025;0
+06.03.2025;3
+07.03.2025;5
+08.03.2025;0
+09.03.2025;0
+10.03.2025;1
+11.03.2025;0
+12.03.2025;0
+13.03.2025;9
+14.03.2025;7
+15.03.2025;0
+16.03.2025;0
+17.03.2025;3
+18.03.2025;0
+19.03.2025;0
+20.03.2025;4
+21.03.2025;10
+22.03.2025;0
+23.03.2025;0
+24.03.2025;1
+25.03.2025;0
+26.03.2025;0
+27.03.2025;5
+28.03.2025;1
+29.03.2025;0
+30.03.2025;0
+31.03.2025;2
+01.04.2025;0
+02.04.2025;0
+03.04.2025;2
+04.04.2025;11
+05.04.2025;0
+06.04.2025;0
+07.04.2025;1
+08.04.2025;0
+09.04.2025;0
+10.04.2025;5
+11.04.2025;2
+12.04.2025;0
+13.04.2025;0
+14.04.2025;1
+15.04.2025;0
+16.04.2025;0
+17.04.2025;4
+18.04.2025;7
+19.04.2025;0`;
+
+  /* ── Polish public holidays (YYYY-MM-DD) ── */
+  const PL_HOLIDAYS = new Set([
+    '2025-01-01', // Nowy Rok
+    '2025-01-06', // Trzech Króli
+    '2025-04-20', // Wielkanoc
+    '2025-04-21', // Poniedziałek Wielkanocny
+    '2025-05-01', // Święto Pracy
+    '2025-05-03', // Święto Konstytucji
+    '2025-06-08', // Zesłanie Ducha Świętego
+    '2025-06-19', // Boże Ciało
+    '2025-08-15', // Wniebowzięcie NMP
+    '2025-11-01', // Wszystkich Świętych
+    '2025-11-11', // Święto Niepodległości
+    '2025-12-25', // Boże Narodzenie
+    '2025-12-26', // Drugi dzień Bożego Narodzenia
+  ]);
+
+  /* ── Helpers ── */
+  function parseDate(str) {
+    const [d, m, y] = str.split('.');
+    return new Date(+y, +m - 1, +d);
+  }
+
+  function toISO(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function isWorkingDay(date) {
+    const dow = date.getDay(); // 0=Sun, 6=Sat
+    if (dow === 0 || dow === 6) return false;
+    if (PL_HOLIDAYS.has(toISO(date))) return false;
+    return true;
+  }
+
+  /* Returns the ISO Monday date string for the week containing `date` */
+  function weekMonday(date) {
+    const d = new Date(date);
+    const dow = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const diff = (dow === 0) ? -6 : 1 - dow; // shift to Monday
+    d.setDate(d.getDate() + diff);
+    return toISO(d);
+  }
+
+  /* ── Parse & filter ── */
+  const rows = CSV.trim().split('\n').map(line => {
+    const [dateStr, valStr] = line.split(';');
+    return { date: parseDate(dateStr.trim()), value: parseInt(valStr.trim(), 10) };
+  }).filter(r => isWorkingDay(r.date));
+
+  /* ── Weekly aggregation ── */
+  const weekMap = new Map();
+  rows.forEach(r => {
+    const wk = weekMonday(r.date);
+    weekMap.set(wk, (weekMap.get(wk) || 0) + r.value);
+  });
+  const weeks = Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([monday, total]) => ({ monday, total }));
+
+  /* ── XMR statistics (median-based) ── */
+  function median(arr) {
+    if (arr.length === 0) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+  }
+
+  const xValues = weeks.map(w => w.total);
+  const mrValues = xValues.slice(1).map((v, i) => Math.abs(v - xValues[i]));
+
+  const medX  = median(xValues);
+  const medMR = median(mrValues);
+
+  const uclX  = medX + 2.66 * medMR;
+  const lclX  = Math.max(0, medX - 2.66 * medMR);
+  const uclMR = 3.267 * medMR;
+
+  /* ── Format week label: "Mon DD.MM" ── */
+  function fmtWeek(isoMonday) {
+    const [y, m, d] = isoMonday.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  const labels = weeks.map(w => fmtWeek(w.monday));
+
+  /* ── X-Chart ── */
+  function buildXChart() {
+    const pointColors = xValues.map(v =>
+      (v > uclX || (lclX > 0 && v < lclX)) ? '#ef5350' : '#4fc3f7'
+    );
+    const pointRadius = xValues.map(v =>
+      (v > uclX || (lclX > 0 && v < lclX)) ? 7 : 5
+    );
+
+    const ctx = document.getElementById('xChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Przepustowość tygodniowa',
+          data: xValues,
+          borderColor: 'rgba(79,195,247,0.7)',
+          borderWidth: 2,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointRadius,
+          pointHoverRadius: pointRadius.map(r => r + 3),
+          tension: 0,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => 'Tydzień od ' + items[0].label,
+              label: item => {
+                const v = item.raw;
+                const flags = [];
+                if (v > uclX) flags.push('powyżej UCL ⚠️');
+                if (lclX > 0 && v < lclX) flags.push('poniżej LCL ⚠️');
+                return ` ${v} zadań${flags.length ? '  ' + flags.join(' · ') : ''}`;
+              },
+            },
+            backgroundColor: 'rgba(15,20,60,0.92)',
+            titleColor: '#90a0b7',
+            bodyColor: '#e8ecf5',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+          },
+          annotation: {
+            annotations: {
+              medLine: {
+                type: 'line', yMin: medX, yMax: medX,
+                borderColor: '#ef5350', borderWidth: 2,
+                label: {
+                  display: true,
+                  content: `Mediana = ${medX.toFixed(1)}`,
+                  position: 'start',
+                  backgroundColor: 'rgba(239,83,80,0.15)',
+                  color: '#ef5350',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              },
+              uclLine: {
+                type: 'line', yMin: uclX, yMax: uclX,
+                borderColor: '#ef5350', borderWidth: 2, borderDash: [6, 4],
+                label: {
+                  display: true,
+                  content: `UCL = ${uclX.toFixed(1)}`,
+                  position: 'end',
+                  backgroundColor: 'rgba(239,83,80,0.15)',
+                  color: '#ef5350',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              },
+              ...(lclX > 0 ? {
+                lclLine: {
+                  type: 'line', yMin: lclX, yMax: lclX,
+                  borderColor: '#ef5350', borderWidth: 2, borderDash: [6, 4],
+                  label: {
+                    display: true,
+                    content: `LCL = ${lclX.toFixed(1)}`,
+                    position: 'start',
+                    backgroundColor: 'rgba(239,83,80,0.15)',
+                    color: '#ef5350',
+                    font: { size: 11, weight: 'bold' },
+                    padding: { x: 6, y: 3 },
+                    borderRadius: 4,
+                  }
+                }
+              } : {
+                lclLine: {
+                  type: 'line', yMin: 0, yMax: 0,
+                  borderColor: 'rgba(239,83,80,0.4)', borderWidth: 1, borderDash: [4, 4],
+                  label: {
+                    display: true,
+                    content: 'LCL = 0',
+                    position: 'start',
+                    backgroundColor: 'rgba(239,83,80,0.1)',
+                    color: 'rgba(239,83,80,0.7)',
+                    font: { size: 10 },
+                    padding: { x: 4, y: 2 },
+                    borderRadius: 3,
+                  }
+                }
+              }),
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#90a0b7', maxRotation: 45, font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#90a0b7', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            title: { display: true, text: 'Przepustowość (zadania/tydzień)', color: '#90a0b7', font: { size: 12 } },
+          }
+        }
+      }
+    });
+  }
+
+  /* ── MR-Chart ── */
+  function buildMRChart() {
+    const mrLabels = labels.slice(1);
+    const mrPointColors = mrValues.map(v => v > uclMR ? '#ef5350' : '#ce93d8');
+    const mrPointRadius = mrValues.map(v => v > uclMR ? 7 : 5);
+
+    const ctx = document.getElementById('mrChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: mrLabels,
+        datasets: [{
+          label: 'Moving Range',
+          data: mrValues,
+          borderColor: 'rgba(206,147,216,0.7)',
+          borderWidth: 2,
+          pointBackgroundColor: mrPointColors,
+          pointBorderColor: mrPointColors,
+          pointRadius: mrPointRadius,
+          pointHoverRadius: mrPointRadius.map(r => r + 3),
+          tension: 0,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => 'Tydzień od ' + items[0].label,
+              label: item => {
+                const v = item.raw;
+                const flag = v > uclMR ? '  powyżej UCL ⚠️' : '';
+                return ` MR = ${v}${flag}`;
+              },
+            },
+            backgroundColor: 'rgba(15,20,60,0.92)',
+            titleColor: '#90a0b7',
+            bodyColor: '#e8ecf5',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+          },
+          annotation: {
+            annotations: {
+              medMRLine: {
+                type: 'line', yMin: medMR, yMax: medMR,
+                borderColor: '#4fc3f7', borderWidth: 2,
+                label: {
+                  display: true,
+                  content: `Mediana MR = ${medMR.toFixed(1)}`,
+                  position: 'start',
+                  backgroundColor: 'rgba(79,195,247,0.15)',
+                  color: '#4fc3f7',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              },
+              uclMRLine: {
+                type: 'line', yMin: uclMR, yMax: uclMR,
+                borderColor: '#4fc3f7', borderWidth: 2, borderDash: [6, 4],
+                label: {
+                  display: true,
+                  content: `UCL = ${uclMR.toFixed(1)}`,
+                  position: 'end',
+                  backgroundColor: 'rgba(79,195,247,0.15)',
+                  color: '#4fc3f7',
+                  font: { size: 11, weight: 'bold' },
+                  padding: { x: 6, y: 3 },
+                  borderRadius: 4,
+                }
+              },
+              lclMRLine: {
+                type: 'line', yMin: 0, yMax: 0,
+                borderColor: 'rgba(79,195,247,0.4)', borderWidth: 1, borderDash: [4, 4],
+                label: {
+                  display: true,
+                  content: 'LCL = 0',
+                  position: 'start',
+                  backgroundColor: 'rgba(79,195,247,0.1)',
+                  color: 'rgba(79,195,247,0.7)',
+                  font: { size: 10 },
+                  padding: { x: 4, y: 2 },
+                  borderRadius: 3,
+                }
+              },
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#90a0b7', maxRotation: 45, font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#90a0b7', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            title: { display: true, text: 'Moving Range', color: '#90a0b7', font: { size: 12 } },
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Stat cards ── */
+  function updateStats() {
+    const outsideX = xValues.filter(v => v > uclX || (lclX > 0 && v < lclX)).length;
+    document.getElementById('statWeeks').textContent = weeks.length;
+    document.getElementById('statMedianX').textContent = medX.toFixed(1);
+    document.getElementById('statUCL').textContent = uclX.toFixed(1);
+    document.getElementById('statLCL').textContent = lclX > 0 ? lclX.toFixed(1) : '0';
+    document.getElementById('statMedianMR').textContent = medMR.toFixed(1);
+    document.getElementById('statUCLMR').textContent = uclMR.toFixed(1);
+  }
+
+  /* ── Weekly table ── */
+  function buildWeeksList() {
+    const list = document.getElementById('weeksList');
+    list.innerHTML = weeks.map((w, i) => {
+      const v = w.total;
+      const mr = i > 0 ? mrValues[i - 1] : null;
+      const cls = v > uclX ? 'above' : (lclX > 0 && v < lclX) ? 'below' : 'normal';
+      return `<div class="week-row">
+        <span class="week-lbl">${fmtWeek(w.monday)}</span>
+        <span class="week-val ${cls}">${v}</span>
+        <span class="week-mr">${mr !== null ? mr : '–'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* ── Init ── */
+  updateStats();
+  buildXChart();
+  buildMRChart();
+  buildWeeksList();
+</script>
+</body>
+</html>
