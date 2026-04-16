@@ -53,11 +53,13 @@
   <nav class="tab-bar">
     <button class="tab-btn active" onclick="showTab('histogram', event)">📊 Histogram</button>
     <button class="tab-btn" onclick="showTab('scatterplot', event)">🔵 Scatterplot</button>
+    <button class="tab-btn" onclick="showTab('xchart', event)">📈 X-Chart</button>
   </nav>
 
   <div class="frame-wrap">
     <iframe id="tab-histogram" class="visible" src="histogram.html" title="Histogram Czasów Realizacji"></iframe>
     <iframe id="tab-scatterplot" src="sc.html" title="Scatterplot Czasów Realizacji"></iframe>
+    <iframe id="tab-xchart" src="x-chart.html" title="X-Chart Czasów Realizacji"></iframe>
   </div>
 
   <script>
