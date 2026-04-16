@@ -315,6 +315,8 @@ const CUTOFF_DATE  = new Date(2026, 7, 31);  // Aug 31 2026
 // ─────────────────────────────────────────────
 function sprintEndDate(sprintNum) {
   const d = new Date(START_DATE);
+  // Sprint N covers days [N-1)*SPRINT_DAYS .. N*SPRINT_DAYS-1] relative to START_DATE,
+  // so its last day is START_DATE + N*SPRINT_DAYS - 1  (e.g. sprint 1 → day 13 → May 14).
   d.setDate(d.getDate() + sprintNum * SPRINT_DAYS - 1);
   return d;
 }
@@ -344,6 +346,8 @@ for (let i = 0; i < NUM_SIM; i++) {
   let doneByCutoff = 0;
   let finished = false;
 
+  // Loop continues while the backlog is not yet finished OR we haven't tracked the
+  // cutoff sprint yet.  Both conditions must be satisfied to stop (De Morgan of &&).
   while (!finished || sprint < SPRINTS_BY_CUTOFF) {
     sprint++;
     const tp = THROUGHPUT[Math.floor(Math.random() * THROUGHPUT.length)];
@@ -405,7 +409,8 @@ document.getElementById('kpi-minmax-dates').textContent =
 // ─────────────────────────────────────────────
 //  ANSWERS TABLE
 // ─────────────────────────────────────────────
-const pct85items = Math.ceil(0.85 * BACKLOG); // 53 items = 85%
+const CONFIDENCE_THRESHOLD_85 = 0.85;  // 85% confidence level used throughout
+const pct85items = Math.ceil(CONFIDENCE_THRESHOLD_85 * BACKLOG); // 53 items = 85%
 // For "85% of backlog items delivered": find sprint at which 85% of sims delivered >= 53 items
 // Easier: find percentile of completion date when backlog target = ceil(0.85*62) = 53
 const sim85arr = new Int32Array(NUM_SIM);
