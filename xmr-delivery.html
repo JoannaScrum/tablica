@@ -156,6 +156,41 @@
     .week-val.normal { color: #a8e063; }
     .week-mr { color: #4fc3f7; min-width: 28px; text-align: right; font-size: 0.9em; }
 
+    /* signal panel */
+    .signal-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 0.84em; line-height: 1.4; }
+    .signal-badge { padding: 2px 7px; border-radius: 10px; font-size: 0.75em; font-weight: 700; flex-shrink: 0; letter-spacing: 0.3px; margin-top: 1px; }
+    .signal-badge.strong   { background: rgba(239,83,80,0.2);   color: #ef5350; border: 1px solid rgba(239,83,80,0.4); }
+    .signal-badge.moderate { background: rgba(255,112,67,0.2);  color: #ff7043; border: 1px solid rgba(255,112,67,0.4); }
+    .signal-badge.weak     { background: rgba(255,193,7,0.2);   color: #ffc107; border: 1px solid rgba(255,193,7,0.4); }
+    .signal-badge.run      { background: rgba(186,104,200,0.2); color: #ba68c8; border: 1px solid rgba(186,104,200,0.4); }
+
+    /* add week form */
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.78em; color: #90a0b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .form-group input[type="date"],
+    .form-group input[type="number"] {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #e8ecf5;
+      padding: 7px 10px;
+      font-size: 0.88em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus { border-color: #4fc3f7; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.6); }
+    .btn-primary { width: 100%; padding: 10px; background: linear-gradient(135deg, #4fc3f7, #0077b6); border: none; border-radius: 10px; color: #fff; font-size: 0.92em; font-weight: 600; cursor: pointer; letter-spacing: 0.4px; transition: opacity 0.2s, transform 0.15s; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-undo { width: 100%; padding: 8px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; color: #90a0b7; font-size: 0.84em; cursor: pointer; transition: background 0.2s; margin-top: 6px; }
+    .btn-undo:hover { background: rgba(255,255,255,0.13); }
+    .btn-undo:disabled { opacity: 0.35; cursor: default; }
+    .msg { font-size: 0.82em; color: #4fc3f7; margin-top: 8px; min-height: 1.2em; text-align: center; }
+    .msg.error { color: #ef5350; }
+    .btn-del { background: rgba(239,83,80,0.15); border: 1px solid rgba(239,83,80,0.35); color: #ef5350; border-radius: 6px; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85em; transition: background 0.2s; flex-shrink: 0; }
+    .btn-del:hover { background: rgba(239,83,80,0.3); }
+
     /* responsive */
     @media (max-width: 900px) {
       .main-row { flex-direction: column; }
@@ -230,6 +265,40 @@
           <div class="legend-dot" style="background:#ef5350"></div>
           <span>Punkt poza granicami</span>
         </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ff7043"></div>
+          <span>Umiarkowany sygnał (2/3)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ffc107"></div>
+          <span>Trwały słaby sygnał (1/3)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ba68c8"></div>
+          <span>Trwała zmiana (8 tygodni)</span>
+        </div>
+      </div>
+
+      <!-- Signals -->
+      <div class="panel">
+        <h3>🔍 Sygnały XMR</h3>
+        <div id="signalsList"></div>
+      </div>
+
+      <!-- Add week -->
+      <div class="panel">
+        <h3>➕ Dodaj tydzień</h3>
+        <div class="form-group">
+          <label>Data (dowolny dzień tygodnia)</label>
+          <input type="date" id="newWeekDate" />
+        </div>
+        <div class="form-group">
+          <label>Liczba zadań w tygodniu</label>
+          <input type="number" id="newWeekCount" min="0" placeholder="np. 12" />
+        </div>
+        <button class="btn-primary" onclick="addWeek()">➕ Dodaj tydzień</button>
+        <button class="btn-undo" id="btnWeekUndo" onclick="undoWeekDelete()" disabled>↩ Cofnij ostatnie usunięcie</button>
+        <div class="msg" id="weekAddMsg"></div>
       </div>
 
       <div class="panel">
@@ -424,7 +493,7 @@
     const wk = weekMonday(r.date);
     weekMap.set(wk, (weekMap.get(wk) || 0) + r.value);
   });
-  const weeks = Array.from(weekMap.entries())
+  let weeks = Array.from(weekMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([monday, total]) => ({ monday, total }));
 
@@ -436,35 +505,99 @@
     return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
   }
 
-  const xValues = weeks.map(w => w.total);
-  const mrValues = xValues.slice(1).map((v, i) => Math.abs(v - xValues[i]));
-
-  const medX  = median(xValues);
-  const medMR = median(mrValues);
-
-  const uclX  = medX + 2.66 * medMR;
-  const lclX  = Math.max(0, medX - 2.66 * medMR);
-  const uclMR = 3.267 * medMR;
-
-  /* ── Format week label: "Mon DD.MM" ── */
+  /* ── Format week label: "DD.MM.YYYY" ── */
   function fmtWeek(isoMonday) {
     const [y, m, d] = isoMonday.split('-');
     return `${d}.${m}.${y}`;
   }
 
-  const labels = weeks.map(w => fmtWeek(w.monday));
+  /* ── Mutable computed state ── */
+  let xValues, mrValues, medX, medMR, uclX, lclX, uclMR, labels;
+
+  function recompute() {
+    xValues = weeks.map(w => w.total);
+    mrValues = xValues.slice(1).map((v, i) => Math.abs(v - xValues[i]));
+    medX  = median(xValues);
+    medMR = median(mrValues);
+    uclX  = medX + 2.66 * medMR;
+    lclX  = Math.max(0, medX - 2.66 * medMR);
+    uclMR = 3.267 * medMR;
+    labels = weeks.map(w => fmtWeek(w.monday));
+  }
+
+  /* ── Chart instances ── */
+  let xChartInst = null;
+  let mrChartInst = null;
+
+  /* ── Signal detection (Nelson/Western Electric rules) ── */
+  function detectSignals(values, center, ucl, lcl) {
+    const n = values.length;
+    if (n === 0) return [];
+    const range = ucl - center;
+    const z23u = center + (2 / 3) * range;
+    const z13u = center + (1 / 3) * range;
+    const z23l = center - (2 / 3) * range;
+    const z13l = center - (1 / 3) * range;
+    const sigs = Array.from({ length: n }, () => new Set());
+    for (let i = 0; i < n; i++) {
+      if (values[i] > ucl || (lcl > 0 && values[i] < lcl)) sigs[i].add(1);
+    }
+    for (let i = 0; i <= n - 3; i++) {
+      const w = values.slice(i, i + 3);
+      if (w.filter(v => v > z23u).length >= 2)
+        for (let j = i; j < i + 3; j++) { if (values[j] > z23u) sigs[j].add(2); }
+      if (w.filter(v => v < z23l).length >= 2)
+        for (let j = i; j < i + 3; j++) { if (values[j] < z23l) sigs[j].add(2); }
+    }
+    for (let i = 0; i <= n - 5; i++) {
+      const w = values.slice(i, i + 5);
+      if (w.filter(v => v > z13u).length >= 3)
+        for (let j = i; j < i + 5; j++) { if (values[j] > z13u) sigs[j].add(3); }
+      if (w.filter(v => v < z13l).length >= 3)
+        for (let j = i; j < i + 5; j++) { if (values[j] < z13l) sigs[j].add(3); }
+    }
+    for (let i = 0; i <= n - 8; i++) {
+      const w = values.slice(i, i + 8);
+      if (w.every(v => v > center) || w.every(v => v < center))
+        for (let j = i; j < i + 8; j++) sigs[j].add(4);
+    }
+    return sigs;
+  }
+
+  /* ── Signals panel ── */
+  function updateSignalsPanel(signals) {
+    const counts = { 1: [], 2: [], 3: [], 4: [] };
+    signals.forEach((s, i) => s.forEach(t => counts[t].push(i + 1)));
+    const fmt = arr => arr.length <= 5
+      ? '#' + arr.join(', #')
+      : '#' + arr.slice(0, 5).join(', #') + ` (+${arr.length - 5})`;
+    const el = document.getElementById('signalsList');
+    const items = [];
+    if (counts[1].length) items.push(`<div class="signal-item"><span class="signal-badge strong">SILNY</span><span>Poza UCL/LCL: ${fmt(counts[1])}</span></div>`);
+    if (counts[2].length) items.push(`<div class="signal-item"><span class="signal-badge moderate">UMIARK.</span><span>2 z 3 poza 2/3: ${fmt(counts[2])}</span></div>`);
+    if (counts[3].length) items.push(`<div class="signal-item"><span class="signal-badge weak">SŁABY</span><span>3 z 5 poza 1/3: ${fmt(counts[3])}</span></div>`);
+    if (counts[4].length) items.push(`<div class="signal-item"><span class="signal-badge run">ZMIANA</span><span>8 po 1 stronie: ${fmt(counts[4])}</span></div>`);
+    el.innerHTML = items.length
+      ? items.join('')
+      : '<p style="color:#a8e063;font-size:0.85em">✅ Brak sygnałów</p>';
+  }
 
   /* ── X-Chart ── */
   function buildXChart() {
-    const pointColors = xValues.map(v =>
-      (v > uclX || (lclX > 0 && v < lclX)) ? '#ef5350' : '#4fc3f7'
-    );
-    const pointRadius = xValues.map(v =>
-      (v > uclX || (lclX > 0 && v < lclX)) ? 7 : 5
-    );
+    const signals = detectSignals(xValues, medX, uclX, lclX);
+    const pointColors = xValues.map((v, i) => {
+      const s = signals[i];
+      if (s.has(1)) return '#ef5350';
+      if (s.has(2)) return '#ff7043';
+      if (s.has(3)) return '#ffc107';
+      if (s.has(4)) return '#ba68c8';
+      return '#4fc3f7';
+    });
+    const pointRadius = xValues.map((v, i) => signals[i].size > 0 ? 7 : 5);
 
     const ctx = document.getElementById('xChart').getContext('2d');
-    new Chart(ctx, {
+    if (xChartInst) xChartInst.destroy();
+    xChartInst = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
@@ -490,11 +623,14 @@
             callbacks: {
               title: items => 'Tydzień od ' + items[0].label,
               label: item => {
-                const v = item.raw;
+                const i = item.dataIndex;
+                const s = signals[i];
                 const flags = [];
-                if (v > uclX) flags.push('powyżej UCL ⚠️');
-                if (lclX > 0 && v < lclX) flags.push('poniżej LCL ⚠️');
-                return ` ${v} zadań${flags.length ? '  ' + flags.join(' · ') : ''}`;
+                if (s.has(1)) flags.push('⛔ Silny sygnał');
+                else if (s.has(2)) flags.push('🟠 Umiarkowany sygnał');
+                else if (s.has(3)) flags.push('🟡 Trwały słaby sygnał');
+                else if (s.has(4)) flags.push('🟣 Trwała zmiana');
+                return ` ${item.raw} zadań${flags.length ? '  ' + flags.join(' · ') : ''}`;
               },
             },
             backgroundColor: 'rgba(15,20,60,0.92)',
@@ -590,7 +726,8 @@
     const mrPointRadius = mrValues.map(v => v > uclMR ? 7 : 5);
 
     const ctx = document.getElementById('mrChart').getContext('2d');
-    new Chart(ctx, {
+    if (mrChartInst) mrChartInst.destroy();
+    mrChartInst = new Chart(ctx, {
       type: 'line',
       data: {
         labels: mrLabels,
@@ -712,15 +849,71 @@
         <span class="week-lbl">${fmtWeek(w.monday)}</span>
         <span class="week-val ${cls}">${v}</span>
         <span class="week-mr">${mr !== null ? mr : '–'}</span>
+        <button class="btn-del" onclick="removeWeek(${i})" title="Usuń tydzień">✕</button>
       </div>`;
     }).join('');
   }
 
+  /* ── Build all ── */
+  function buildAll() {
+    recompute();
+    buildXChart();
+    buildMRChart();
+    updateStats();
+    buildWeeksList();
+    const signals = detectSignals(xValues, medX, uclX, lclX);
+    updateSignalsPanel(signals);
+  }
+
+  /* ── Add week ── */
+  let deletedWeekStack = [];
+
+  function addWeek() {
+    const dateVal = document.getElementById('newWeekDate').value;
+    const countVal = parseInt(document.getElementById('newWeekCount').value, 10);
+    if (!dateVal) { showWeekMsg('Podaj datę.', true); return; }
+    if (isNaN(countVal) || countVal < 0) { showWeekMsg('Podaj prawidłową liczbę (≥ 0).', true); return; }
+    const monday = weekMonday(new Date(dateVal));
+    const existing = weeks.findIndex(w => w.monday === monday);
+    if (existing >= 0) {
+      weeks[existing].total = countVal;
+    } else {
+      weeks.push({ monday, total: countVal });
+      weeks.sort((a, b) => a.monday.localeCompare(b.monday));
+    }
+    document.getElementById('newWeekDate').value = '';
+    document.getElementById('newWeekCount').value = '';
+    buildAll();
+    showWeekMsg(`Dodano tydzień od ${monday.split('-').reverse().join('.')}`, false);
+  }
+
+  function removeWeek(idx) {
+    deletedWeekStack.push({ idx, week: { ...weeks[idx] } });
+    weeks.splice(idx, 1);
+    document.getElementById('btnWeekUndo').disabled = false;
+    buildAll();
+  }
+
+  function undoWeekDelete() {
+    if (!deletedWeekStack.length) return;
+    const { idx, week } = deletedWeekStack.pop();
+    weeks.splice(idx, 0, week);
+    weeks.sort((a, b) => a.monday.localeCompare(b.monday));
+    document.getElementById('btnWeekUndo').disabled = deletedWeekStack.length === 0;
+    buildAll();
+  }
+
+  let weekMsgTimer = null;
+  function showWeekMsg(text, isError) {
+    const el = document.getElementById('weekAddMsg');
+    el.textContent = text;
+    el.className = 'msg' + (isError ? ' error' : '');
+    clearTimeout(weekMsgTimer);
+    weekMsgTimer = setTimeout(() => { el.textContent = ''; }, 3500);
+  }
+
   /* ── Init ── */
-  updateStats();
-  buildXChart();
-  buildMRChart();
-  buildWeeksList();
+  buildAll();
 </script>
 </body>
 </html>

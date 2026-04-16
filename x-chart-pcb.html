@@ -269,6 +269,14 @@
     .msg { font-size: 0.82em; color: #4fc3f7; margin-top: 8px; min-height: 1.2em; text-align: center; }
     .msg.error { color: #ef5350; }
 
+    /* signal panel */
+    .signal-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 0.84em; line-height: 1.4; }
+    .signal-badge { padding: 2px 7px; border-radius: 10px; font-size: 0.75em; font-weight: 700; flex-shrink: 0; letter-spacing: 0.3px; margin-top: 1px; }
+    .signal-badge.strong   { background: rgba(239,83,80,0.2);   color: #ef5350; border: 1px solid rgba(239,83,80,0.4); }
+    .signal-badge.moderate { background: rgba(255,112,67,0.2);  color: #ff7043; border: 1px solid rgba(255,112,67,0.4); }
+    .signal-badge.weak     { background: rgba(255,193,7,0.2);   color: #ffc107; border: 1px solid rgba(255,193,7,0.4); }
+    .signal-badge.run      { background: rgba(186,104,200,0.2); color: #ba68c8; border: 1px solid rgba(186,104,200,0.4); }
+
     /* responsive */
     @media (max-width: 900px) {
       .main-row, .mr-row { flex-direction: column; }
@@ -344,6 +352,24 @@
           <div class="legend-pulse"></div>
           <span>Wartość min / max</span>
         </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ff7043"></div>
+          <span>Umiarkowany sygnał (2/3)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ffc107"></div>
+          <span>Trwały słaby sygnał (1/3)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ba68c8"></div>
+          <span>Trwała zmiana (8 wartości)</span>
+        </div>
+      </div>
+
+      <!-- Signals -->
+      <div class="panel">
+        <h3>🔍 Sygnały XMR</h3>
+        <div id="signalsList"></div>
       </div>
 
       <!-- Add point -->
@@ -486,6 +512,45 @@
     return { mean, mrAvg, unpl, lnpl, minIdx, maxIdx, mrs, url };
   }
 
+  /* ── Signal detection (Nelson/Western Electric rules) ── */
+  function detectSignals(values, center, ucl, lcl) {
+    const n = values.length;
+    if (n === 0) return [];
+    const range = ucl - center;
+    const z23u = center + (2 / 3) * range;
+    const z13u = center + (1 / 3) * range;
+    const z23l = center - (2 / 3) * range;
+    const z13l = center - (1 / 3) * range;
+    const sigs = Array.from({ length: n }, () => new Set());
+    // Rule 1: strong – 1 point beyond UCL/LCL
+    for (let i = 0; i < n; i++) {
+      if (values[i] > ucl || (lcl > 0 && values[i] < lcl)) sigs[i].add(1);
+    }
+    // Rule 2: moderate – 2 of 3 consecutive beyond 2/3 zone (same side)
+    for (let i = 0; i <= n - 3; i++) {
+      const w = values.slice(i, i + 3);
+      if (w.filter(v => v > z23u).length >= 2)
+        for (let j = i; j < i + 3; j++) { if (values[j] > z23u) sigs[j].add(2); }
+      if (w.filter(v => v < z23l).length >= 2)
+        for (let j = i; j < i + 3; j++) { if (values[j] < z23l) sigs[j].add(2); }
+    }
+    // Rule 3: persistent weak – 3 of 5 consecutive beyond 1/3 zone (same side)
+    for (let i = 0; i <= n - 5; i++) {
+      const w = values.slice(i, i + 5);
+      if (w.filter(v => v > z13u).length >= 3)
+        for (let j = i; j < i + 5; j++) { if (values[j] > z13u) sigs[j].add(3); }
+      if (w.filter(v => v < z13l).length >= 3)
+        for (let j = i; j < i + 5; j++) { if (values[j] < z13l) sigs[j].add(3); }
+    }
+    // Rule 4: persistent change – 8 consecutive on same side of mean
+    for (let i = 0; i <= n - 8; i++) {
+      const w = values.slice(i, i + 8);
+      if (w.every(v => v > center) || w.every(v => v < center))
+        for (let j = i; j < i + 8; j++) sigs[j].add(4);
+    }
+    return sigs;
+  }
+
   /* ── Pulse animation plugin ── */
   let pulsePhase = 0;
   let rafId = null;
@@ -550,27 +615,33 @@
 
   function buildChart() {
     const stats = calcStats(data);
-    buildXChart(stats);
+    const signals = detectSignals(data.map(d => d.days), stats.mean, stats.unpl, stats.lnpl);
+    buildXChart(stats, signals);
     buildMRChart(stats);
     updateStatCards(stats);
     updateMRStatCards(stats);
     updatePointsList(stats);
+    updateSignalsPanel(signals);
     startPulse();
   }
 
   /* ── X-Chart ── */
-  function buildXChart(stats) {
+  function buildXChart(stats, signals) {
     const labels = data.map(d => d.date);
     const values = data.map(d => d.days);
 
     const pointColors = values.map((v, i) => {
+      const s = signals[i];
+      if (s.has(1)) return '#ef5350';
+      if (s.has(2)) return '#ff7043';
+      if (s.has(3)) return '#ffc107';
+      if (s.has(4)) return '#ba68c8';
       if (i === stats.minIdx || i === stats.maxIdx) return '#ffd700';
-      if (v > stats.unpl || v < stats.lnpl) return '#ef5350';
       return '#4fc3f7';
     });
     const pointRadius = values.map((v, i) => {
       if (i === stats.minIdx || i === stats.maxIdx) return 8;
-      if (v > stats.unpl || v < stats.lnpl) return 7;
+      if (signals[i].size > 0) return 7;
       return 5;
     });
 
@@ -612,8 +683,11 @@
                 const flags = [];
                 if (i === stats.minIdx) flags.push('MIN ⬇️');
                 if (i === stats.maxIdx) flags.push('MAX ⬆️');
-                if (item.raw > stats.unpl) flags.push('powyżej UNPL ⚠️');
-                if (stats.lnpl > 0 && item.raw < stats.lnpl) flags.push('poniżej LNPL');
+                const s = signals[i];
+                if (s.has(1)) flags.push('⛔ Silny sygnał');
+                else if (s.has(2)) flags.push('🟠 Umiarkowany sygnał');
+                else if (s.has(3)) flags.push('🟡 Trwały słaby sygnał');
+                else if (s.has(4)) flags.push('🟣 Trwała zmiana');
                 return ` ${item.raw} dni${flags.length ? '  ' + flags.join(' · ') : ''}`;
               },
             },
@@ -857,6 +931,24 @@
     document.getElementById('btnUndo').disabled = false;
     buildChart();
     showMsg(`Usunięto punkt #${idx + 1}`, false);
+  }
+
+  /* ── Signals panel ── */
+  function updateSignalsPanel(signals) {
+    const counts = { 1: [], 2: [], 3: [], 4: [] };
+    signals.forEach((s, i) => s.forEach(t => counts[t].push(i + 1)));
+    const fmt = arr => arr.length <= 5
+      ? '#' + arr.join(', #')
+      : '#' + arr.slice(0, 5).join(', #') + ` (+${arr.length - 5})`;
+    const el = document.getElementById('signalsList');
+    const items = [];
+    if (counts[1].length) items.push(`<div class="signal-item"><span class="signal-badge strong">SILNY</span><span>Poza UNPL/LNPL: ${fmt(counts[1])}</span></div>`);
+    if (counts[2].length) items.push(`<div class="signal-item"><span class="signal-badge moderate">UMIARK.</span><span>2 z 3 poza 2/3: ${fmt(counts[2])}</span></div>`);
+    if (counts[3].length) items.push(`<div class="signal-item"><span class="signal-badge weak">SŁABY</span><span>3 z 5 poza 1/3: ${fmt(counts[3])}</span></div>`);
+    if (counts[4].length) items.push(`<div class="signal-item"><span class="signal-badge run">ZMIANA</span><span>8 po 1 stronie: ${fmt(counts[4])}</span></div>`);
+    el.innerHTML = items.length
+      ? items.join('')
+      : '<p style="color:#a8e063;font-size:0.85em">✅ Brak sygnałów</p>';
   }
 
   /* ── Undo ── */
