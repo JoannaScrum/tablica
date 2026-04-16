@@ -521,7 +521,7 @@
                 if (i === stats.minIdx) flags.push('MIN ⬇️');
                 if (i === stats.maxIdx) flags.push('MAX ⬆️');
                 if (item.raw > stats.unpl) flags.push('powyżej UNPL ⚠️');
-                else if (item.raw < stats.lnpl && stats.lnpl > 0) flags.push('poniżej LNPL');
+                if (stats.lnpl > 0 && item.raw < stats.lnpl) flags.push('poniżej LNPL');
                 return ` ${item.raw} dni${flags.length ? '  ' + flags.join(' · ') : ''}`;
               },
             },
@@ -633,15 +633,17 @@
       return;
     }
     list.innerHTML = data.map((d, i) => {
-      let cls = 'normal', badge = '';
-      if (i === stats.maxIdx)       { cls = 'is-max';      badge = ' 🔺'; }
-      else if (i === stats.minIdx)  { cls = 'is-min';      badge = ' 🔻'; }
-      else if (d.days > stats.unpl) { cls = 'over-unpl';   badge = ' ⚠️'; }
-      else if (stats.lnpl > 0 && d.days < stats.lnpl) { cls = 'under-lnpl'; badge = ' ⬇️'; }
+      const badges = [];
+      if (i === stats.maxIdx)                              badges.push({ cls: 'is-max',      icon: '🔺' });
+      if (i === stats.minIdx)                              badges.push({ cls: 'is-min',      icon: '🔻' });
+      if (d.days > stats.unpl)                             badges.push({ cls: 'over-unpl',   icon: '⚠️' });
+      if (stats.lnpl > 0 && d.days < stats.lnpl)          badges.push({ cls: 'under-lnpl',  icon: '⬇️' });
+      const primaryCls = badges.length ? badges[0].cls : 'normal';
+      const badgeStr   = badges.map(b => b.icon).join('');
       return `<div class="point-row">
         <span class="point-idx">${i + 1}</span>
         <span class="point-date">${d.date}</span>
-        <span class="point-days ${cls}">${d.days}${badge}</span>
+        <span class="point-days ${primaryCls}">${d.days}${badgeStr ? ' ' + badgeStr : ''}</span>
         <button class="btn-del" onclick="removePoint(${i})" title="Usuń punkt">✕</button>
       </div>`;
     }).join('');
@@ -685,12 +687,13 @@
     showMsg(`Dodano: ${dateVal} – ${daysVal} dni`, false);
   }
 
+  let msgTimer = null;
   function showMsg(text, isError) {
     const el = document.getElementById('addMsg');
     el.textContent = text;
     el.className = 'msg' + (isError ? ' error' : '');
-    clearTimeout(el._t);
-    el._t = setTimeout(() => { el.textContent = ''; }, 3500);
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(() => { el.textContent = ''; }, 3500);
   }
 
   /* ── Init ── */
