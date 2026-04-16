@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>X-Chart PCB Czasów Realizacji</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+      color: #e8ecf5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .container { max-width: 1500px; margin: 0 auto; }
+
+    /* stat cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 12px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-value { font-size: 2em; font-weight: 700; line-height: 1.1; }
+    .stat-value.blue  { color: #4fc3f7; }
+    .stat-value.red   { color: #ef5350; }
+    .stat-value.green { color: #a8e063; }
+    .stat-label { font-size: 0.76em; color: #90a0b7; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+    /* layout */
+    .main-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .chart-card {
+      flex: 1 1 0;
+      min-width: 0;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .chart-hint {
+      text-align: center;
+      font-size: 0.78em;
+      color: #90a0b7;
+      margin-top: 10px;
+    }
+
+    /* sidebar */
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 18px 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h3 {
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #90a0b7;
+      margin-bottom: 14px;
+    }
+
+    /* legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.92em;
+    }
+    .legend-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .legend-line {
+      width: 28px; height: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+    .legend-dashed {
+      width: 28px; height: 0;
+      flex-shrink: 0;
+      border-top: 2px dashed;
+    }
+    .legend-pulse {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #ffd700;
+      box-shadow: 0 0 0 4px rgba(255,215,0,0.3);
+      animation: legendPulse 1.6s ease-out infinite;
+    }
+    @keyframes legendPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,215,0,0.6); }
+      70%  { box-shadow: 0 0 0 8px rgba(255,215,0,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+    }
+
+    /* add point form */
+    .form-group { margin-bottom: 12px; }
+    .form-group label {
+      display: block;
+      font-size: 0.78em;
+      color: #90a0b7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .form-group input[type="date"],
+    .form-group input[type="number"] {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #e8ecf5;
+      padding: 7px 10px;
+      font-size: 0.88em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus { border-color: #4fc3f7; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.6); }
+
+    .btn-primary {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #4fc3f7, #0077b6);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.92em;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-undo {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      color: #90a0b7;
+      font-size: 0.84em;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 6px;
+    }
+    .btn-undo:hover { background: rgba(255,255,255,0.13); }
+    .btn-undo:disabled { opacity: 0.35; cursor: default; }
+
+    /* points list */
+    .points-list {
+      max-height: 300px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.2) transparent;
+    }
+    .point-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      font-size: 0.86em;
+      gap: 8px;
+    }
+    .point-row:last-child { border-bottom: none; }
+    .point-idx  { color: #90a0b7; font-size: 0.78em; min-width: 20px; }
+    .point-date { color: #90a0b7; font-size: 0.82em; flex: 1; }
+    .point-days { font-weight: 700; min-width: 36px; text-align: right; }
+    .point-days.over-unpl  { color: #ef5350; }
+    .point-days.under-lnpl { color: #ffa726; }
+    .point-days.normal     { color: #a8e063; }
+    .point-days.is-min     { color: #ffd700; }
+    .point-days.is-max     { color: #ffd700; }
+
+    .btn-del {
+      background: rgba(239,83,80,0.15);
+      border: 1px solid rgba(239,83,80,0.35);
+      color: #ef5350;
+      border-radius: 6px;
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 0.9em;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .btn-del:hover { background: rgba(239,83,80,0.3); }
+
+    .msg { font-size: 0.82em; color: #4fc3f7; margin-top: 8px; min-height: 1.2em; text-align: center; }
+    .msg.error { color: #ef5350; }
+
+    /* responsive */
+    @media (max-width: 900px) {
+      .main-row { flex-direction: column; }
+      .sidebar { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📈 X-Chart Czasów Realizacji (PCB)</h1>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value blue" id="statCount">–</div>
+      <div class="stat-label">Liczba punktów</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value red" id="statMean">–</div>
+      <div class="stat-label">Średnia (X̄)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="statUNPL">–</div>
+      <div class="stat-label">UNPL (górna granica)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="statLNPL">–</div>
+      <div class="stat-label">LNPL (dolna granica)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value green" id="statMR">–</div>
+      <div class="stat-label">Średni ruch MR̄</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue" id="statOutside">–</div>
+      <div class="stat-label">Poza granicami</div>
+    </div>
+  </div>
+
+  <!-- Main row -->
+  <div class="main-row">
+    <div class="chart-card">
+      <canvas id="xChart"></canvas>
+      <p class="chart-hint">💡 Kliknij na punkt na wykresie, aby go usunąć</p>
+    </div>
+
+    <div class="sidebar">
+
+      <!-- Legend -->
+      <div class="panel">
+        <h3>Legenda</h3>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#4fc3f7"></div>
+          <span>Czas realizacji</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:#ef5350"></div>
+          <span>Średnia X̄</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dashed" style="border-color:#4fc3f7"></div>
+          <span>UNPL – górna granica</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dashed" style="border-color:#4fc3f7"></div>
+          <span>LNPL – dolna granica</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ef5350"></div>
+          <span>Punkt poza granicami</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-pulse"></div>
+          <span>Wartość min / max</span>
+        </div>
+      </div>
+
+      <!-- Add point -->
+      <div class="panel">
+        <h3>➕ Dodaj punkt</h3>
+        <div class="form-group">
+          <label>Data ukończenia</label>
+          <input type="date" id="newDate" />
+        </div>
+        <div class="form-group">
+          <label>Czas realizacji (dni)</label>
+          <input type="number" id="newDays" min="1" placeholder="np. 14" />
+        </div>
+        <button class="btn-primary" onclick="addPoint()">➕ Dodaj</button>
+        <button class="btn-undo" id="btnUndo" onclick="undoDelete()" disabled>↩ Cofnij ostatnie usunięcie</button>
+        <div class="msg" id="addMsg"></div>
+      </div>
+
+      <!-- Points list -->
+      <div class="panel">
+        <h3>📋 Lista punktów</h3>
+        <div class="points-list" id="pointsList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Data from "3. PCB Czas realizacji.csv" ── */
+  let data = [
+    { date: '2024-01-05', days: 38 },
+    { date: '2024-01-11', days: 24 },
+    { date: '2024-01-16', days: 14 },
+    { date: '2024-01-17', days: 9 },
+    { date: '2024-01-22', days: 4 },
+    { date: '2024-01-26', days: 25 },
+    { date: '2024-01-29', days: 19 },
+    { date: '2024-02-06', days: 51 },
+    { date: '2024-02-12', days: 48 },
+    { date: '2024-02-15', days: 15 },
+    { date: '2024-02-17', days: 22 },
+    { date: '2024-02-18', days: 42 },
+    { date: '2024-02-19', days: 17 },
+    { date: '2024-02-21', days: 7 },
+    { date: '2024-02-28', days: 5 },
+    { date: '2024-03-12', days: 20 },
+    { date: '2024-03-14', days: 63 },
+    { date: '2024-03-19', days: 6 },
+    { date: '2024-03-20', days: 56 },
+    { date: '2024-03-22', days: 24 },
+    { date: '2024-03-22', days: 22 },
+    { date: '2024-03-26', days: 50 },
+    { date: '2024-03-27', days: 8 },
+    { date: '2024-03-28', days: 2 },
+    { date: '2024-03-29', days: 3 },
+    { date: '2024-03-30', days: 8 },
+    { date: '2024-04-01', days: 36 },
+    { date: '2024-04-02', days: 27 },
+    { date: '2024-04-09', days: 29 },
+    { date: '2024-04-09', days: 20 },
+  ];
+
+  let deletedStack = [];
+
+  /* ── X-chart statistics ── */
+  function calcStats(arr) {
+    if (arr.length === 0) return { mean: 0, mrAvg: 0, unpl: 0, lnpl: 0, minIdx: -1, maxIdx: -1 };
+    const n = arr.length;
+    const mean = arr.reduce((s, d) => s + d.days, 0) / n;
+    const mrs = [];
+    for (let i = 1; i < n; i++) mrs.push(Math.abs(arr[i].days - arr[i - 1].days));
+    const mrAvg = mrs.length ? mrs.reduce((s, v) => s + v, 0) / mrs.length : 0;
+    const unpl = mean + 2.66 * mrAvg;
+    const lnpl = Math.max(0, mean - 2.66 * mrAvg);
+
+    let minVal = Infinity, maxVal = -Infinity, minIdx = 0, maxIdx = 0;
+    arr.forEach((d, i) => {
+      if (d.days < minVal) { minVal = d.days; minIdx = i; }
+      if (d.days > maxVal) { maxVal = d.days; maxIdx = i; }
+    });
+
+    return { mean, mrAvg, unpl, lnpl, minIdx, maxIdx };
+  }
+
+  /* ── Pulse animation plugin ── */
+  let pulsePhase = 0;
+  let rafId = null;
+
+  const pulsePlugin = {
+    id: 'pulsePlugin',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data) return;
+
+      const stats = chart._pulseStats;
+      if (!stats) return;
+
+      const indices = new Set();
+      if (stats.minIdx >= 0) indices.add(stats.minIdx);
+      if (stats.maxIdx >= 0 && stats.maxIdx !== stats.minIdx) indices.add(stats.maxIdx);
+
+      const phase = pulsePhase;
+      const maxRing = 22;
+
+      indices.forEach(i => {
+        const el = meta.data[i];
+        if (!el) return;
+        const { x, y } = el.getProps(['x', 'y'], true);
+
+        for (let ring = 0; ring < 2; ring++) {
+          const t = (phase + ring * 0.5) % 1;
+          const radius = 6 + t * maxRing;
+          const alpha = (1 - t) * 0.75;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+  };
+
+  Chart.register(pulsePlugin);
+
+  /* ── Animate loop ── */
+  function startPulse() {
+    if (rafId) cancelAnimationFrame(rafId);
+    let last = null;
+    function tick(ts) {
+      if (last !== null) pulsePhase = (pulsePhase + (ts - last) / 1400) % 1;
+      last = ts;
+      if (myChart) myChart.draw();
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  /* ── Chart.js instance ── */
+  let myChart = null;
+
+  function buildChart() {
+    const stats = calcStats(data);
+    const labels = data.map(d => d.date);
+    const values = data.map(d => d.days);
+
+    const pointColors = values.map((v, i) => {
+      if (i === stats.minIdx || i === stats.maxIdx) return '#ffd700';
+      if (v > stats.unpl || v < stats.lnpl) return '#ef5350';
+      return '#4fc3f7';
+    });
+    const pointRadius = values.map((v, i) => {
+      if (i === stats.minIdx || i === stats.maxIdx) return 8;
+      if (v > stats.unpl || v < stats.lnpl) return 7;
+      return 5;
+    });
+
+    const ctx = document.getElementById('xChart').getContext('2d');
+    if (myChart) { myChart.destroy(); }
+
+    myChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Czas realizacji (dni)',
+          data: values,
+          borderColor: 'rgba(79,195,247,0.65)',
+          borderWidth: 2,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointRadius,
+          pointHoverRadius: pointRadius.map(r => r + 3),
+          tension: 0,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: true },
+        onClick(evt) {
+          const points = myChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
+          if (points.length > 0) removePoint(points[0].index);
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => items[0].label,
+              label: item => {
+                const i = item.dataIndex;
+                const flags = [];
+                if (i === stats.minIdx) flags.push('MIN ⬇️');
+                if (i === stats.maxIdx) flags.push('MAX ⬆️');
+                if (item.raw > stats.unpl) flags.push('powyżej UNPL ⚠️');
+                if (stats.lnpl > 0 && item.raw < stats.lnpl) flags.push('poniżej LNPL');
+                return ` ${item.raw} dni${flags.length ? '  ' + flags.join(' · ') : ''}`;
+              },
+            },
+            backgroundColor: 'rgba(15,20,60,0.92)',
+            titleColor: '#90a0b7',
+            bodyColor: '#e8ecf5',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+          },
+          annotation: { annotations: buildAnnotations(stats) },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#90a0b7', maxRotation: 45, font: { size: 11 }, maxTicksLimit: 18 },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#90a0b7', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            title: { display: true, text: 'Czas realizacji (dni)', color: '#90a0b7', font: { size: 12 } },
+          }
+        }
+      }
+    });
+
+    myChart._pulseStats = stats;
+    updateStatCards(stats);
+    updatePointsList(stats);
+    startPulse();
+  }
+
+  function buildAnnotations(stats) {
+    const fmt = v => v.toFixed(1);
+    const annotations = {
+      meanLine: {
+        type: 'line',
+        yMin: stats.mean, yMax: stats.mean,
+        borderColor: '#ef5350',
+        borderWidth: 2,
+        label: {
+          display: true,
+          content: `X̄ = ${fmt(stats.mean)}`,
+          position: 'start',
+          backgroundColor: 'rgba(239,83,80,0.15)',
+          color: '#ef5350',
+          font: { size: 11, weight: 'bold' },
+          padding: { x: 6, y: 3 },
+          borderRadius: 4,
+        }
+      },
+      unplLine: {
+        type: 'line',
+        yMin: stats.unpl, yMax: stats.unpl,
+        borderColor: '#4fc3f7',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        label: {
+          display: true,
+          content: `UNPL = ${fmt(stats.unpl)}`,
+          position: 'end',
+          backgroundColor: 'rgba(79,195,247,0.15)',
+          color: '#4fc3f7',
+          font: { size: 11, weight: 'bold' },
+          padding: { x: 6, y: 3 },
+          borderRadius: 4,
+        }
+      },
+    };
+
+    if (stats.lnpl > 0) {
+      annotations.lnplLine = {
+        type: 'line',
+        yMin: stats.lnpl, yMax: stats.lnpl,
+        borderColor: '#4fc3f7',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        label: {
+          display: true,
+          content: `LNPL = ${fmt(stats.lnpl)}`,
+          position: 'start',
+          backgroundColor: 'rgba(79,195,247,0.15)',
+          color: '#4fc3f7',
+          font: { size: 11, weight: 'bold' },
+          padding: { x: 6, y: 3 },
+          borderRadius: 4,
+        }
+      };
+    }
+
+    return annotations;
+  }
+
+  function updateStatCards(stats) {
+    const fmt = v => v.toFixed(1);
+    const outside = data.filter(d => d.days > stats.unpl || (stats.lnpl > 0 && d.days < stats.lnpl)).length;
+    document.getElementById('statCount').textContent = data.length;
+    document.getElementById('statMean').textContent = data.length ? fmt(stats.mean) : '–';
+    document.getElementById('statUNPL').textContent = data.length ? fmt(stats.unpl) : '–';
+    document.getElementById('statLNPL').textContent = data.length ? (stats.lnpl > 0 ? fmt(stats.lnpl) : '0') : '–';
+    document.getElementById('statMR').textContent = data.length ? fmt(stats.mrAvg) : '–';
+    document.getElementById('statOutside').textContent = data.length ? outside : '–';
+  }
+
+  function updatePointsList(stats) {
+    const list = document.getElementById('pointsList');
+    if (data.length === 0) {
+      list.innerHTML = '<p style="color:#90a0b7;font-size:0.85em;text-align:center;padding:10px 0">Brak danych</p>';
+      return;
+    }
+    list.innerHTML = data.map((d, i) => {
+      const badges = [];
+      if (i === stats.maxIdx)                              badges.push({ cls: 'is-max',      icon: '🔺' });
+      if (i === stats.minIdx)                              badges.push({ cls: 'is-min',      icon: '🔻' });
+      if (d.days > stats.unpl)                             badges.push({ cls: 'over-unpl',   icon: '⚠️' });
+      if (stats.lnpl > 0 && d.days < stats.lnpl)          badges.push({ cls: 'under-lnpl',  icon: '⬇️' });
+      const primaryCls = badges.length ? badges[0].cls : 'normal';
+      const badgeStr   = badges.map(b => b.icon).join('');
+      return `<div class="point-row">
+        <span class="point-idx">${i + 1}</span>
+        <span class="point-date">${d.date}</span>
+        <span class="point-days ${primaryCls}">${d.days}${badgeStr ? ' ' + badgeStr : ''}</span>
+        <button class="btn-del" onclick="removePoint(${i})" title="Usuń punkt">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  /* ── Remove a point ── */
+  function removePoint(idx) {
+    deletedStack.push({ idx, point: { ...data[idx] } });
+    data.splice(idx, 1);
+    document.getElementById('btnUndo').disabled = false;
+    buildChart();
+    showMsg(`Usunięto punkt #${idx + 1}`, false);
+  }
+
+  /* ── Undo ── */
+  function undoDelete() {
+    if (!deletedStack.length) return;
+    const { idx, point } = deletedStack.pop();
+    data.splice(idx, 0, point);
+    document.getElementById('btnUndo').disabled = deletedStack.length === 0;
+    buildChart();
+    showMsg(`Przywrócono punkt #${idx + 1}`, false);
+  }
+
+  /* ── Add a new point ── */
+  function addPoint() {
+    const dateVal = document.getElementById('newDate').value;
+    const daysVal = parseInt(document.getElementById('newDays').value, 10);
+
+    if (!dateVal)                        { showMsg('Podaj datę.', true); return; }
+    if (isNaN(daysVal) || daysVal < 1)  { showMsg('Podaj prawidłową liczbę dni (≥ 1).', true); return; }
+
+    const newPoint = { date: dateVal, days: daysVal };
+    const insertIdx = data.findIndex(d => d.date > dateVal);
+    if (insertIdx === -1) data.push(newPoint);
+    else data.splice(insertIdx, 0, newPoint);
+
+    document.getElementById('newDate').value = '';
+    document.getElementById('newDays').value = '';
+    buildChart();
+    showMsg(`Dodano: ${dateVal} – ${daysVal} dni`, false);
+  }
+
+  let msgTimer = null;
+  function showMsg(text, isError) {
+    const el = document.getElementById('addMsg');
+    el.textContent = text;
+    el.className = 'msg' + (isError ? ' error' : '');
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(() => { el.textContent = ''; }, 3500);
+  }
+
+  /* ── Init ── */
+  buildChart();
+</script>
+</body>
+</html>
