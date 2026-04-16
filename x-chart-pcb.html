@@ -524,7 +524,7 @@
     const sigs = Array.from({ length: n }, () => new Set());
     // Rule 1: strong – 1 point beyond UCL/LCL
     for (let i = 0; i < n; i++) {
-      if (values[i] > ucl || (lcl > 0 && values[i] < lcl)) sigs[i].add(1);
+      if (values[i] > ucl || values[i] < lcl) sigs[i].add(1);
     }
     // Rule 2: moderate – 2 of 3 consecutive beyond 2/3 zone (same side)
     for (let i = 0; i <= n - 3; i++) {
