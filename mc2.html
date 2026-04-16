@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monte Carlo – Prognoza Epików</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+      color: #e8ecf5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.75em;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.86em;
+      color: #90a0b7;
+      margin-bottom: 28px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* ── Section card ── */
+    .section {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .section-title {
+      font-size: 1em;
+      font-weight: 700;
+      color: #cde;
+      margin-bottom: 18px;
+      letter-spacing: 0.3px;
+    }
+
+    .section-hint {
+      font-size: 0.82em;
+      color: #90a0b7;
+      margin-bottom: 14px;
+    }
+
+    /* ── Config grid ── */
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .config-item > label {
+      display: block;
+      font-size: 0.76em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #90a0b7;
+      margin-bottom: 8px;
+    }
+
+    .date-input-wrapper input {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      color: #e8ecf5;
+      font-size: 0.9em;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .date-input-wrapper input:hover,
+    .date-input-wrapper input:focus { border-color: rgba(79,195,247,0.55); }
+
+    select {
+      width: 100%;
+      padding: 10px 30px 10px 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      color: #e8ecf5;
+      font-size: 0.9em;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2390a0b7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 10px;
+    }
+
+    select option { background: #1a1a2e; }
+
+    /* ── Radio pills (focus) ── */
+    .radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .radio-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.86em;
+      color: #b0c4d8;
+      transition: all 0.15s;
+    }
+
+    .radio-btn input[type="radio"] { display: none; }
+
+    .radio-btn:has(input:checked) {
+      background: rgba(79,195,247,0.2);
+      border-color: rgba(79,195,247,0.5);
+      color: #4fc3f7;
+      font-weight: 600;
+    }
+
+    /* ── Epics table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88em;
+    }
+
+    thead th {
+      text-transform: uppercase;
+      font-size: 0.74em;
+      letter-spacing: 0.6px;
+      color: #90a0b7;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      text-align: left;
+    }
+
+    tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: middle;
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+
+    tbody td input[type="number"],
+    tbody td input[type="text"] {
+      width: 100%;
+      padding: 7px 10px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 6px;
+      color: #e8ecf5;
+      font-size: 0.9em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    tbody td input:focus { border-color: rgba(79,195,247,0.45); }
+
+    /* ── Buttons ── */
+    .btn-add {
+      margin-top: 12px;
+      padding: 8px 18px;
+      background: rgba(79,195,247,0.12);
+      border: 1px solid rgba(79,195,247,0.3);
+      border-radius: 8px;
+      color: #4fc3f7;
+      font-size: 0.84em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-add:hover { background: rgba(79,195,247,0.22); }
+
+    .btn-run {
+      padding: 14px 52px;
+      background: linear-gradient(135deg, #4fc3f7, #0077b6);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1.05em;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(0,119,182,0.35);
+    }
+
+    .btn-run:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,119,182,0.5); }
+
+    .btn-remove {
+      padding: 4px 10px;
+      background: rgba(239,83,80,0.12);
+      border: 1px solid rgba(239,83,80,0.25);
+      border-radius: 6px;
+      color: #ef9a9a;
+      font-size: 0.8em;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-remove:hover { background: rgba(239,83,80,0.22); }
+
+    /* ── Throughput ── */
+    .throughput-bulk {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .throughput-bulk > div { flex: 1; min-width: 200px; }
+
+    .throughput-bulk label {
+      font-size: 0.78em;
+      color: #90a0b7;
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .throughput-bulk textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      color: #e8ecf5;
+      font-size: 0.88em;
+      resize: vertical;
+      min-height: 56px;
+      outline: none;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    .throughput-bulk textarea:focus { border-color: rgba(79,195,247,0.45); }
+
+    .throughput-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .throughput-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: rgba(79,195,247,0.12);
+      border: 1px solid rgba(79,195,247,0.25);
+      border-radius: 6px;
+      font-size: 0.84em;
+      color: #b0d8f5;
+    }
+
+    .remove-tag { cursor: pointer; color: #90a0b7; transition: color 0.12s; }
+    .remove-tag:hover { color: #ef9a9a; }
+
+    .throughput-stats {
+      margin-top: 10px;
+      font-size: 0.8em;
+      color: #90a0b7;
+    }
+
+    /* ── Sprint capacity ── */
+    .sprint-cap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .sprint-cap-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      gap: 10px;
+    }
+
+    .sprint-cap-item.reduced {
+      border-color: rgba(255,183,77,0.3);
+      background: rgba(255,183,77,0.04);
+    }
+
+    .sprint-cap-label {
+      font-size: 0.82em;
+      color: #b0c4d8;
+      flex: 1;
+    }
+
+    .sprint-cap-item select {
+      width: auto;
+      padding: 5px 24px 5px 10px;
+      font-size: 0.82em;
+    }
+
+    /* ── Date picker popup ── */
+    .dp-popup {
+      position: fixed;
+      z-index: 9999;
+      background: #1e2a3a;
+      border: 1px solid rgba(79,195,247,0.35);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      min-width: 278px;
+      user-select: none;
+    }
+
+    .dp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .dp-title { font-weight: 600; color: #e8ecf5; font-size: 0.93em; }
+
+    .dp-nav {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 6px;
+      color: #90a0b7;
+      padding: 4px 11px;
+      cursor: pointer;
+      font-size: 0.82em;
+      transition: all 0.12s;
+    }
+
+    .dp-nav:hover { background: rgba(79,195,247,0.2); color: #4fc3f7; }
+
+    .dp-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .dp-dow {
+      text-align: center;
+      font-size: 0.68em;
+      color: #90a0b7;
+      padding: 5px 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .dp-dow.dp-we { color: #ef9a9a; }
+
+    .dp-day {
+      text-align: center;
+      padding: 7px 3px;
+      border-radius: 6px;
+      font-size: 0.84em;
+      cursor: pointer;
+      color: #d0dce8;
+      transition: background 0.1s;
+      line-height: 1;
+    }
+
+    .dp-day:not(.dp-blocked):hover { background: rgba(79,195,247,0.22); }
+
+    .dp-day.dp-blocked {
+      color: rgba(239,83,80,0.55);
+      background: rgba(239,83,80,0.07);
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    .dp-day.dp-blocked:hover { background: rgba(239,83,80,0.12); }
+
+    .dp-day.dp-selected {
+      background: rgba(79,195,247,0.38);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .dp-day.dp-today {
+      border: 1px solid rgba(79,195,247,0.45);
+    }
+
+    /* ── Results ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 14px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+
+    .stat-card.p85 {
+      border-color: rgba(255,183,77,0.4);
+      background: rgba(255,183,77,0.07);
+    }
+
+    .stat-card.p95 {
+      border-color: rgba(239,83,80,0.4);
+      background: rgba(239,83,80,0.07);
+    }
+
+    .stat-value {
+      font-size: 1.75em;
+      font-weight: 700;
+      color: #4fc3f7;
+      line-height: 1.1;
+    }
+
+    .stat-card.p85 .stat-value { color: #ffb74d; }
+    .stat-card.p95 .stat-value { color: #ef5350; }
+
+    .stat-label {
+      font-size: 0.73em;
+      color: #90a0b7;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pct-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.88em;
+    }
+
+    .badge-p85 { background: rgba(255,183,77,0.2); color: #ffb74d; }
+    .badge-p95 { background: rgba(239,83,80,0.18); color: #ef5350; }
+
+    .ok-text  { color: #81c784; }
+    .bad-text { color: #ef5350; font-style: italic; }
+
+    .chart-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .chart-card h2 {
+      font-size: 0.95em;
+      font-weight: 700;
+      color: #cde;
+      margin-bottom: 16px;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.76em;
+      color: #606880;
+      margin-top: 20px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.25); border-radius: 3px; }
+
+    @media (max-width: 700px) {
+      .config-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎯 Prognoza Dostarczenia Epików</h1>
+  <p class="subtitle">Symulacja Monte Carlo • 10 000 scenariuszy • Percentyle 85. i 95.</p>
+
+  <!-- ── 1. Configuration ── -->
+  <div class="section">
+    <h2 class="section-title">⚙️ Konfiguracja</h2>
+    <div class="config-grid">
+
+      <div class="config-item">
+        <label>Data startu</label>
+        <div class="date-input-wrapper">
+          <input type="text" id="startDateInput" readonly placeholder="Kliknij, aby wybrać…" />
+        </div>
+      </div>
+
+      <div class="config-item">
+        <label>Deadline (data końcowa)</label>
+        <div class="date-input-wrapper">
+          <input type="text" id="endDateInput" readonly placeholder="Kliknij, aby wybrać…" />
+        </div>
+      </div>
+
+      <div class="config-item">
+        <label>Długość sprintu</label>
+        <select id="sprintDuration" onchange="regenerateSprintCapacity()">
+          <option value="7">Tydzień (7 dni)</option>
+          <option value="14" selected>2 tygodnie (14 dni)</option>
+          <option value="30">Miesiąc (≈30 dni)</option>
+        </select>
+      </div>
+
+      <div class="config-item">
+        <label>Skupienie zespołu na epikach</label>
+        <div class="radio-group">
+          <label class="radio-btn"><input type="radio" name="focus" value="0">0%</label>
+          <label class="radio-btn"><input type="radio" name="focus" value="25">25%</label>
+          <label class="radio-btn"><input type="radio" name="focus" value="50">50%</label>
+          <label class="radio-btn"><input type="radio" name="focus" value="75">75%</label>
+          <label class="radio-btn"><input type="radio" name="focus" value="100" checked>100%</label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 2. Epics ── -->
+  <div class="section">
+    <h2 class="section-title">📋 Epiki – Estymacja historyjek</h2>
+    <div style="overflow-x:auto">
+      <table id="epicsTable">
+        <thead>
+          <tr>
+            <th style="width:40%">Epik</th>
+            <th>Estymacja min</th>
+            <th>Estymacja max</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody id="epicsBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-add" onclick="addEpicRow()">+ Dodaj epik</button>
+  </div>
+
+  <!-- ── 3. Historical throughput ── -->
+  <div class="section">
+    <h2 class="section-title">📊 Historyczne tempo dostarczania (historyjki / sprint)</h2>
+    <div class="throughput-bulk">
+      <div>
+        <label>Wklej dane wsadowo (liczby po przecinku lub spacjach):</label>
+        <textarea id="bulkInput" placeholder="np. 5, 4, 4, 5, 6, 4, 2, 3, 2, 5, 6"></textarea>
+      </div>
+      <button class="btn-add" style="margin-top:0;align-self:flex-end" onclick="addBulkThroughput()">Dodaj</button>
+    </div>
+    <div class="throughput-tags" id="throughputTags"></div>
+    <div class="throughput-stats" id="throughputStats"></div>
+  </div>
+
+  <!-- ── 4. Sprint capacity ── -->
+  <div class="section">
+    <h2 class="section-title">🗓️ Zdolność sprintów</h2>
+    <p class="section-hint">Ustaw zdolność (%) dla sprintów, w których zespół nie będzie pracował z pełną efektywnością. Wymaga ustawienia daty startu i końcowej.</p>
+    <div class="sprint-cap-grid" id="sprintCapGrid">
+      <p style="color:#606880;font-size:0.82em;grid-column:1/-1">Ustaw datę startu i końcową, aby wygenerować listę sprintów.</p>
+    </div>
+  </div>
+
+  <!-- ── Run button ── -->
+  <div style="text-align:center;margin:28px 0">
+    <button class="btn-run" onclick="runSimulation()">▶ Uruchom symulację</button>
+  </div>
+
+  <!-- ── Results ── -->
+  <div id="resultsSection" style="display:none">
+
+    <div class="section">
+      <h2 class="section-title">🎯 Wyniki symulacji</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">📅 Prognoza dostarczenia epików</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Epik</th>
+              <th>Min hist.</th>
+              <th>Max hist.</th>
+              <th>85. percentyl (data)</th>
+              <th>95. percentyl (data)</th>
+              <th>Status vs deadline</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h2>📈 Oś czasu – prognoza epików (P85 i P95, w sprintach od startu)</h2>
+      <canvas id="timelineChart"></canvas>
+    </div>
+
+    <p class="footer-note">
+      Symulacja Monte Carlo • 10 000 scenariuszy • Bootstrap sampling z powtórzeniami •
+      Liczba historyjek epiku losowana z zakresu [min, max] •
+      Przepustowość = losowy wynik historyczny × skupienie × zdolność sprintu
+    </p>
+  </div>
+</div>
+
+<!-- Date picker popup -->
+<div id="dp-popup" class="dp-popup" style="display:none"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  POLISH HOLIDAYS
+// ═══════════════════════════════════════════════════════════════
+// Anonymous Gregorian algorithm (Computus) for Easter Sunday date calculation.
+function calcEaster(y) {
+  const goldenNumber  = y % 19;
+  const century       = Math.floor(y / 100);
+  const yearInCentury = y % 100;
+  const centuryDiv4   = Math.floor(century / 4);
+  const centuryMod4   = century % 4;
+  const correction    = Math.floor((century + 8) / 25);
+  const lunarCorr     = Math.floor((century - correction + 1) / 3);
+  const epact         = (19 * goldenNumber + century - centuryDiv4 - lunarCorr + 15) % 30;
+  const yearDiv4      = Math.floor(yearInCentury / 4);
+  const yearMod4      = yearInCentury % 4;
+  const weekday       = (32 + 2 * centuryMod4 + 2 * yearDiv4 - epact - yearMod4) % 7;
+  const adj           = Math.floor((goldenNumber + 11 * epact + 22 * weekday) / 451);
+  const month         = Math.floor((epact + weekday - 7 * adj + 114) / 31);
+  const day           = ((epact + weekday - 7 * adj + 114) % 31) + 1;
+  return new Date(y, month - 1, day);
+}
+
+const holidayCache = {};
+function holidaySet(y) {
+  if (holidayCache[y]) return holidayCache[y];
+  const e = calcEaster(y).getTime(), D = 864e5;
+  const s = new Set([
+    +new Date(y, 0, 1),   // Nowy Rok
+    +new Date(y, 0, 6),   // Trzech Króli
+    e,                     // Wielkanoc
+    e + D,                 // Poniedziałek Wielkanocny
+    +new Date(y, 4, 1),   // Święto Pracy
+    +new Date(y, 4, 3),   // Święto Konstytucji
+    e + 49 * D,           // Zielone Świątki
+    e + 60 * D,           // Boże Ciało
+    +new Date(y, 7, 15),  // Wniebowzięcie NMP
+    +new Date(y, 10, 1),  // Wszystkich Świętych
+    +new Date(y, 10, 11), // Święto Niepodległości
+    +new Date(y, 11, 25), // Boże Narodzenie
+    +new Date(y, 11, 26), // Drugi dzień Bożego Narodzenia
+  ]);
+  holidayCache[y] = s;
+  return s;
+}
+
+function isHoliday(d) {
+  return holidaySet(d.getFullYear()).has(+new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
+function isBlocked(d) { return isWeekend(d) || isHoliday(d); }
+
+// ═══════════════════════════════════════════════════════════════
+//  DATE HELPERS
+// ═══════════════════════════════════════════════════════════════
+const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+                'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DATE PICKER
+// ═══════════════════════════════════════════════════════════════
+let dpState = null;
+const dpPopup = document.getElementById('dp-popup');
+
+function openPicker(inputEl, current, onChange) {
+  const ref = current || new Date();
+  dpState = {
+    inputEl,
+    sel: current ? new Date(current) : null,
+    y: ref.getFullYear(),
+    m: ref.getMonth(),
+    onChange
+  };
+  renderPicker();
+  placePicker(inputEl);
+  dpPopup.style.display = 'block';
+}
+
+function closePicker() {
+  dpPopup.style.display = 'none';
+  dpState = null;
+}
+
+function placePicker(el) {
+  const r = el.getBoundingClientRect();
+  let top = r.bottom + 6;
+  let left = r.left;
+  const pw = 282;
+  if (left + pw > window.innerWidth) left = window.innerWidth - pw - 8;
+  if (left < 4) left = 4;
+  dpPopup.style.top = top + 'px';
+  dpPopup.style.left = left + 'px';
+}
+
+function renderPicker() {
+  if (!dpState) return;
+  const { y, m, sel } = dpState;
+  const firstDow = new Date(y, m, 1).getDay();
+  const offset = (firstDow + 6) % 7;  // week starts Monday
+  const dim = new Date(y, m + 1, 0).getDate();
+  const today = new Date();
+
+  let html = `
+    <div class="dp-header">
+      <button class="dp-nav" id="dpPrev">◀</button>
+      <span class="dp-title">${MONTHS[m]} ${y}</span>
+      <button class="dp-nav" id="dpNext">▶</button>
+    </div>
+    <div class="dp-grid">
+      <div class="dp-dow">Pn</div><div class="dp-dow">Wt</div>
+      <div class="dp-dow">Śr</div><div class="dp-dow">Cz</div>
+      <div class="dp-dow">Pt</div>
+      <div class="dp-dow dp-we">Sb</div>
+      <div class="dp-dow dp-we">Nd</div>
+  `;
+
+  for (let i = 0; i < offset; i++) html += '<div></div>';
+
+  for (let day = 1; day <= dim; day++) {
+    const date = new Date(y, m, day);
+    const blocked = isBlocked(date);
+    const selected = sel && sel.getFullYear() === y && sel.getMonth() === m && sel.getDate() === day;
+    const isToday = today.getFullYear() === y && today.getMonth() === m && today.getDate() === day;
+
+    let cls = 'dp-day';
+    if (blocked)  cls += ' dp-blocked';
+    if (selected) cls += ' dp-selected';
+    if (isToday)  cls += ' dp-today';
+
+    const attr = blocked ? '' : `data-d="${y}-${m + 1}-${day}"`;
+    html += `<div class="${cls}" ${attr}>${day}</div>`;
+  }
+
+  html += '</div>';
+  dpPopup.innerHTML = html;
+
+  document.getElementById('dpPrev').addEventListener('click', e => {
+    e.stopPropagation();
+    if (dpState.m === 0) { dpState.m = 11; dpState.y--; }
+    else dpState.m--;
+    renderPicker();
+  });
+
+  document.getElementById('dpNext').addEventListener('click', e => {
+    e.stopPropagation();
+    if (dpState.m === 11) { dpState.m = 0; dpState.y++; }
+    else dpState.m++;
+    renderPicker();
+  });
+
+  dpPopup.querySelectorAll('[data-d]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const [dy, dm, dd] = el.dataset.d.split('-').map(Number);
+      const chosen = new Date(dy, dm - 1, dd);
+      dpState.sel = chosen;
+      dpState.inputEl.value = fmtDate(chosen);
+      const cb = dpState.onChange;
+      closePicker();
+      cb(chosen);
+    });
+  });
+}
+
+document.addEventListener('click', e => {
+  if (dpState && dpPopup.style.display !== 'none' &&
+      !dpPopup.contains(e.target) && e.target !== dpState.inputEl) {
+    closePicker();
+  }
+});
+
+// ── Wire up date inputs ──────────────────────────────────────
+let startDate = null;
+let endDate   = null;
+
+document.getElementById('startDateInput').addEventListener('click', function () {
+  openPicker(this, startDate, d => {
+    startDate = d;
+    regenerateSprintCapacity();
+  });
+});
+
+document.getElementById('endDateInput').addEventListener('click', function () {
+  openPicker(this, endDate, d => {
+    endDate = d;
+    regenerateSprintCapacity();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  EPICS TABLE
+// ═══════════════════════════════════════════════════════════════
+const epicsBody = document.getElementById('epicsBody');
+
+function addEpicRow(name, min, max) {
+  const idx = epicsBody.children.length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text"   placeholder="Epik ${idx}" value="${name !== undefined ? name : ''}" /></td>
+    <td><input type="number" min="0" placeholder="0"   value="${min !== undefined ? min : ''}" /></td>
+    <td><input type="number" min="0" placeholder="0"   value="${max !== undefined ? max : ''}" /></td>
+    <td><button class="btn-remove" onclick="this.closest('tr').remove()">✕</button></td>
+  `;
+  epicsBody.appendChild(tr);
+}
+
+for (let i = 1; i <= 10; i++) addEpicRow(`Epik ${i}`, '', '');
+
+// ═══════════════════════════════════════════════════════════════
+//  HISTORICAL THROUGHPUT
+// ═══════════════════════════════════════════════════════════════
+let throughputData = [];
+
+function renderThroughputTags() {
+  const tagsEl  = document.getElementById('throughputTags');
+  const statsEl = document.getElementById('throughputStats');
+
+  if (throughputData.length === 0) {
+    tagsEl.innerHTML  = '';
+    statsEl.textContent = 'Brak danych historycznych. Dodaj dane powyżej.';
+    return;
+  }
+
+  tagsEl.innerHTML = throughputData.map((v, i) => `
+    <div class="throughput-tag">
+      <span>${v}</span>
+      <span class="remove-tag" onclick="removeThroughput(${i})" title="Usuń">✕</span>
+    </div>
+  `).join('');
+
+  const avg = (throughputData.reduce((a, b) => a + b, 0) / throughputData.length).toFixed(2);
+  const sorted = [...throughputData].sort((a, b) => a - b);
+  const mn = sorted[0], mx = sorted[sorted.length - 1];
+  statsEl.textContent = `${throughputData.length} sprintów • Średnia: ${avg} • Min: ${mn} • Max: ${mx}`;
+}
+
+function addBulkThroughput() {
+  const raw = document.getElementById('bulkInput').value.trim();
+  if (!raw) return;
+  const nums = raw.split(/[,;\s]+/)
+    .map(s => parseFloat(s.trim()))
+    .filter(n => !isNaN(n) && n >= 0);
+  throughputData.push(...nums);
+  renderThroughputTags();
+  document.getElementById('bulkInput').value = '';
+}
+
+function removeThroughput(idx) {
+  throughputData.splice(idx, 1);
+  renderThroughputTags();
+}
+
+renderThroughputTags();
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT CAPACITY
+// ═══════════════════════════════════════════════════════════════
+let sprintCapacities = [];
+
+// Maximum number of sprints to generate in the capacity table (safety guard).
+const MAX_SPRINTS_TO_GENERATE = 500;
+
+function buildSprintList() {
+  if (!startDate || !endDate || endDate <= startDate) return [];
+  const dur = parseInt(document.getElementById('sprintDuration').value);
+  const list = [];
+  let cur = new Date(startDate);
+  let n = 1;
+  while (cur < endDate && n <= MAX_SPRINTS_TO_GENERATE) {
+    const end = new Date(cur);
+    end.setDate(end.getDate() + dur - 1);
+    if (end > endDate) end.setTime(endDate.getTime());
+    list.push({
+      num:      n,
+      label:    `Sprint ${n}: ${fmtDate(cur)} – ${fmtDate(end)}`,
+      capacity: 100
+    });
+    cur.setDate(cur.getDate() + dur);
+    n++;
+  }
+  return list;
+}
+
+function regenerateSprintCapacity() {
+  const grid = document.getElementById('sprintCapGrid');
+  const sprints = buildSprintList();
+
+  if (sprints.length === 0) {
+    grid.innerHTML = '<p style="color:#606880;font-size:0.82em;grid-column:1/-1">Ustaw datę startu i końcową, aby wygenerować listę sprintów.</p>';
+    sprintCapacities = [];
+    return;
+  }
+
+  const prevMap = {};
+  sprintCapacities.forEach(s => { prevMap[s.label] = s.capacity; });
+  sprintCapacities = sprints.map(s => ({ ...s, capacity: prevMap[s.label] ?? 100 }));
+
+  grid.innerHTML = sprintCapacities.map((s, i) => `
+    <div class="sprint-cap-item" id="sci-${i}">
+      <span class="sprint-cap-label">${s.label}</span>
+      <select onchange="onCapChange(${i}, this.value)">
+        ${[100, 75, 50, 25, 0].map(v =>
+          `<option value="${v}" ${s.capacity === v ? 'selected' : ''}>${v}%</option>`
+        ).join('')}
+      </select>
+    </div>
+  `).join('');
+}
+
+function onCapChange(idx, val) {
+  sprintCapacities[idx].capacity = parseInt(val);
+  const item = document.getElementById(`sci-${idx}`);
+  if (item) item.classList.toggle('reduced', sprintCapacities[idx].capacity < 100);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SIMULATION
+// ═══════════════════════════════════════════════════════════════
+const NUM_SIM    = 10000;
+// MAX_SPRINT caps simulation iterations per run (separate from MAX_SPRINTS_TO_GENERATE
+// which only limits the capacity table display).
+const MAX_SPRINT = 2000;
+
+let chartInstance = null;
+
+function getEpicsData() {
+  const result = [];
+  epicsBody.querySelectorAll('tr').forEach((tr, i) => {
+    const inputs = tr.querySelectorAll('input');
+    const name = inputs[0].value.trim() || `Epik ${i + 1}`;
+    const minV = parseFloat(inputs[1].value);
+    const maxV = parseFloat(inputs[2].value);
+    if (!isNaN(minV) && !isNaN(maxV) && (minV > 0 || maxV > 0)) {
+      result.push({ name, min: Math.min(minV, maxV), max: Math.max(minV, maxV) });
+    }
+  });
+  return result;
+}
+
+function getFocusFactor() {
+  const el = document.querySelector('input[name="focus"]:checked');
+  return el ? parseInt(el.value) / 100 : 1;
+}
+
+function sprintEndDate(sprintNum) {
+  if (!startDate) return null;
+  const dur = parseInt(document.getElementById('sprintDuration').value);
+  const d = new Date(startDate);
+  d.setDate(d.getDate() + dur * sprintNum - 1);
+  return d;
+}
+
+function percentile(arr, p) {
+  const sorted = Array.from(arr).sort((a, b) => a - b);
+  const idx = Math.max(0, Math.ceil(p / 100 * sorted.length) - 1);
+  return sorted[Math.min(idx, sorted.length - 1)];
+}
+
+function sampleStoryCount(epic) {
+  if (epic.min === epic.max) return epic.min;
+  return epic.min + Math.floor(Math.random() * (epic.max - epic.min + 1));
+}
+
+function runSimulation() {
+  const epics = getEpicsData();
+  if (epics.length === 0)          { alert('Dodaj przynajmniej jeden epik z estymacją!'); return; }
+  if (throughputData.length === 0) { alert('Dodaj historyczne dane tempa dostarczania!'); return; }
+  if (!startDate)                  { alert('Ustaw datę startu!'); return; }
+
+  const focus   = getFocusFactor();
+  const tp      = throughputData;
+  const capMap  = {};
+  sprintCapacities.forEach(s => { capMap[s.num] = s.capacity / 100; });
+
+  // completionSprints[epicIdx][simIdx] = sprint number when epic was completed
+  const completionSprints = epics.map(() => new Int32Array(NUM_SIM));
+
+  for (let sim = 0; sim < NUM_SIM; sim++) {
+    // Sample story count for each epic
+    const stories = epics.map(sampleStoryCount);
+
+    // Build cumulative milestones
+    let cum = 0;
+    const milestones = stories.map(s => { cum += s; return cum; });
+
+    let cumThroughput = 0;
+    const done = new Uint8Array(epics.length);
+    let remaining = epics.length;
+    let sprint = 0;
+
+    while (remaining > 0 && sprint < MAX_SPRINT) {
+      sprint++;
+      const baseTp  = tp[Math.floor(Math.random() * tp.length)];
+      const cap     = capMap[sprint] !== undefined ? capMap[sprint] : 1.0;
+      cumThroughput += baseTp * focus * cap;
+
+      for (let e = 0; e < epics.length; e++) {
+        if (!done[e] && cumThroughput >= milestones[e]) {
+          completionSprints[e][sim] = sprint;
+          done[e] = 1;
+          remaining--;
+        }
+      }
+    }
+
+    // Safety: any unfinished epic gets MAX_SPRINT
+    for (let e = 0; e < epics.length; e++) {
+      if (!done[e]) completionSprints[e][sim] = MAX_SPRINT;
+    }
+  }
+
+  const results = epics.map((epic, i) => {
+    const p85sp = percentile(completionSprints[i], 85);
+    const p95sp = percentile(completionSprints[i], 95);
+    return {
+      name:    epic.name,
+      min:     epic.min,
+      max:     epic.max,
+      p85sp,
+      p95sp,
+      p85date: sprintEndDate(p85sp),
+      p95date: sprintEndDate(p95sp),
+    };
+  });
+
+  displayResults(results);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DISPLAY RESULTS
+// ═══════════════════════════════════════════════════════════════
+function displayResults(results) {
+  const section = document.getElementById('resultsSection');
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // ── KPI cards ──
+  const last = results[results.length - 1];
+  const statsGrid = document.getElementById('statsGrid');
+
+  let deadlineHtml = '';
+  if (endDate) {
+    const p85ok = last.p85date && last.p85date <= endDate;
+    const p95ok = last.p95date && last.p95date <= endDate;
+    const countByDeadlineP85 = results.filter(r => r.p85date && r.p85date <= endDate).length;
+    const countByDeadlineP95 = results.filter(r => r.p95date && r.p95date <= endDate).length;
+    deadlineHtml = `
+      <div class="stat-card">
+        <div class="stat-value">${countByDeadlineP85} / ${results.length}</div>
+        <div class="stat-label">Epiki przed deadlinem (P85)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${countByDeadlineP95} / ${results.length}</div>
+        <div class="stat-label">Epiki przed deadlinem (P95)</div>
+      </div>
+    `;
+  }
+
+  statsGrid.innerHTML = `
+    <div class="stat-card p85">
+      <div class="stat-value">${fmtDate(last.p85date)}</div>
+      <div class="stat-label">85. percentyl – koniec wszystkich epików</div>
+    </div>
+    <div class="stat-card p95">
+      <div class="stat-value">${fmtDate(last.p95date)}</div>
+      <div class="stat-label">95. percentyl – koniec wszystkich epików</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${results.length}</div>
+      <div class="stat-label">Liczba epików</div>
+    </div>
+    ${deadlineHtml}
+  `;
+
+  // ── Results table ──
+  const tbody = document.getElementById('resultsBody');
+  tbody.innerHTML = results.map(r => {
+    let status = '<span style="color:#606880">—</span>';
+    if (endDate) {
+      const p85in = r.p85date && r.p85date <= endDate;
+      const p95in = r.p95date && r.p95date <= endDate;
+      if (p85in) {
+        status = '<span class="ok-text">✓ P85 przed deadlinem</span>';
+      } else if (p95in) {
+        status = '<span style="color:#ffb74d">△ P95 przed deadlinem</span>';
+      } else {
+        const overP95 = r.p95date ? Math.ceil((r.p95date - endDate) / 864e5) : '?';
+        status = `<span class="bad-text">✗ Przekroczenie +${overP95}d (P95)</span>`;
+      }
+    }
+
+    return `
+      <tr>
+        <td style="font-weight:600;color:#e8ecf5">${r.name}</td>
+        <td style="color:#90a0b7;text-align:center">${r.min}</td>
+        <td style="color:#90a0b7;text-align:center">${r.max}</td>
+        <td><span class="pct-badge badge-p85">${fmtDate(r.p85date)}</span>
+            <br><small style="color:#90a0b7;font-size:0.75em">Sprint ${r.p85sp}</small></td>
+        <td><span class="pct-badge badge-p95">${fmtDate(r.p95date)}</span>
+            <br><small style="color:#90a0b7;font-size:0.75em">Sprint ${r.p95sp}</small></td>
+        <td style="font-size:0.85em">${status}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // ── Timeline chart ──
+  renderTimeline(results);
+}
+
+function renderTimeline(results) {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+  const canvas = document.getElementById('timelineChart');
+  const labels = results.map(r => r.name);
+  const p85vals  = results.map(r => r.p85sp);
+  const deltaP95 = results.map(r => Math.max(0, r.p95sp - r.p85sp));
+
+  // Dynamic height based on rows
+  canvas.height = Math.max(180, results.length * 48 + 60);
+
+  chartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '85. percentyl (sprinty)',
+          data: p85vals,
+          backgroundColor: 'rgba(255,183,77,0.6)',
+          borderColor:     'rgba(255,183,77,0.9)',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Delta do 95. percentyla',
+          data: deltaP95,
+          backgroundColor: 'rgba(239,83,80,0.45)',
+          borderColor:     'rgba(239,83,80,0.75)',
+          borderWidth: 1,
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#90a0b7', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const r = results[ctx.dataIndex];
+              if (ctx.datasetIndex === 0)
+                return `P85: Sprint ${r.p85sp} → ${fmtDate(r.p85date)}`;
+              return `P95: Sprint ${r.p95sp} → ${fmtDate(r.p95date)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          title: { display: true, text: 'Liczba sprintów od daty startu', color: '#90a0b7', font: { size: 11 } },
+          ticks: { color: '#90a0b7' },
+          grid:  { color: 'rgba(255,255,255,0.06)' }
+        },
+        y: {
+          stacked: true,
+          ticks: { color: '#d0dce8' },
+          grid:  { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
